@@ -34,6 +34,8 @@ export interface ProductSummary {
   avgCostMilli: number;
   alertThreshold: number;
   lowStock: boolean;
+  /** Faux pour un produit désactivé : absent de la caisse et des listes. */
+  active: boolean;
 }
 
 export interface ProductDetail {
@@ -71,6 +73,19 @@ export interface ProductRequest {
   baseUnit: string;
   alertThreshold: number;
   packagings: PackagingRequest[];
+}
+
+export interface PackagingUpdateRequest extends PackagingRequest {
+  /** Identifiant du conditionnement existant ; absent pour en ajouter un. */
+  id?: string;
+}
+
+export interface ProductUpdateRequest {
+  name: string;
+  categoryId: string | null;
+  baseUnit: string;
+  alertThreshold: number;
+  packagings: PackagingUpdateRequest[];
 }
 
 export interface ReceptionRequest {
@@ -311,8 +326,16 @@ export class Api {
     return this.http.post<Category>('/api/categories', { name });
   }
 
-  products(lowStock = false): Observable<ProductSummary[]> {
-    return this.http.get<ProductSummary[]>('/api/products', { params: { lowStock } });
+  products(lowStock = false, includeInactive = false): Observable<ProductSummary[]> {
+    return this.http.get<ProductSummary[]>('/api/products', { params: { lowStock, includeInactive } });
+  }
+
+  updateProduct(id: string, request: ProductUpdateRequest): Observable<ProductDetail> {
+    return this.http.put<ProductDetail>(`/api/products/${id}`, request);
+  }
+
+  setProductActive(id: string, active: boolean): Observable<ProductDetail> {
+    return this.http.post<ProductDetail>(`/api/products/${id}/active`, { active });
   }
 
   product(id: string): Observable<ProductDetail> {

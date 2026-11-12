@@ -94,6 +94,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/products/product-form').then(m => m.ProductForm),
   },
   {
+    path: 'produits/:id/modifier',
+    title: 'Modifier le produit',
+    canActivate: [signedIn, managerOnly],
+    loadComponent: () => import('./features/products/product-form').then(m => m.ProductForm),
+  },
+  {
     path: 'produits/:id',
     title: 'Fiche produit',
     canActivate: [signedIn],

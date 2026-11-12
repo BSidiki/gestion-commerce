@@ -11,7 +11,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | --- | --- |
 | Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Interface servie par le backend (un seul programme) |
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
-| Réceptions, ajustements motivés, journal des mouvements | Modification d'un produit |
+| Réceptions, ajustements motivés, journal des mouvements | Impression sur imprimante thermique |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
 | Coût moyen pondéré, alertes de seuil | Import du catalogue depuis Excel |
 | Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
@@ -22,6 +22,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Installateur Windows : un seul programme avec son propre Java, lancé par un raccourci | |
 | Licence hors ligne : essai de 15 jours, licence signée de 3 mois à partir de son enregistrement, lecture seule à l'échéance | |
 | Comptes propriétaire, secrétaire et vendeur, droits par rôle, journal des opérations sensibles | |
+| Modification d'un produit (nom, seuil, prix, codes-barres, nouveaux conditionnements) et désactivation | |
 
 ## Prérequis
 
@@ -72,7 +73,7 @@ Ensuite, toute l'API exige une session (cookie `GC_SESSION`, HttpOnly, SameSite=
 | Vendre, encaisser, vendre à crédit, enregistrer un remboursement | oui | oui | oui |
 | Recevoir de la marchandise, noter une dépense, ouvrir et clôturer la caisse | oui | oui | oui |
 | Consulter produits, clients, ventes du jour ; faire une sauvegarde | oui | oui | oui |
-| Créer un produit ou une catégorie | non | oui | oui |
+| Créer, modifier, désactiver un produit ; créer une catégorie | non | oui | oui |
 | Voir les coûts, les marges et le résultat du jour | non | oui | oui |
 | Vendre sous le prix plancher | non | non | oui, inscrit au journal |
 | Annuler une vente, corriger le stock | non | non | oui, inscrit au journal |
@@ -110,7 +111,9 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/categories` | Créer une catégorie |
 | GET | `/api/categories` | Lister les catégories |
 | POST | `/api/products` | Créer un produit avec ses conditionnements et ses prix |
-| GET | `/api/products` | Lister les produits (`?lowStock=true` : sous le seuil d'alerte) |
+| GET | `/api/products` | Lister les produits (`?lowStock=true` : sous le seuil d'alerte ; `?includeInactive=true` : avec les désactivés) |
+| PUT | `/api/products/{id}` | Modifier un produit, ses prix, ses codes-barres ; ajouter des conditionnements |
+| POST | `/api/products/{id}/active` | Désactiver ou réactiver un produit |
 | GET | `/api/products/{id}` | Détail d'un produit |
 | POST | `/api/stock/receptions` | Recevoir de la marchandise |
 | POST | `/api/stock/adjustments` | Corriger le stock avec un motif |
@@ -172,6 +175,13 @@ curl -X POST http://127.0.0.1:8080/api/stock/adjustments -H "Content-Type: appli
   "productId": "<id du produit>", "quantityDelta": -5, "reason": "CASSE"
 }'
 ```
+
+### Règles de modification d'un produit
+
+- Le contenu d'un conditionnement existant (son facteur) ne change pas : le stock déjà compté deviendrait faux. On ajoute un nouveau conditionnement à la place.
+- Aucun conditionnement n'est supprimé, et un produit ne se supprime pas : il se désactive. Il disparaît alors de la caisse et des listes, et son historique reste.
+- Les ventes passées gardent le nom et le prix du moment de la vente.
+- Chaque changement de prix est inscrit au journal, avec l'ancien et le nouveau prix.
 
 ### Règles d'une vente
 

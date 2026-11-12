@@ -3,6 +3,7 @@ package com.gestioncommerce;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -116,6 +117,99 @@ class CatalogStockIntegrationTest {
         // 67 > seuil de 50 : pas d'alerte.
         mvc.perform(get("/api/products").param("lowStock", "true"))
                 .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(productId)).isEmpty());
+    }
+
+    @Test
+    void unProduitSeModifieSansFausserLeStock() throws Exception {
+        JsonNode product = createProduct("""
+                {
+                  "name": "Lait concentré",
+                  "baseUnit": "boîte",
+                  "alertThreshold": 10,
+                  "packagings": [
+                    {"name": "boîte", "factor": 1, "barcode": "6111000000011",
+                     "prices": [{"level": "DETAIL", "price": 500, "floorPrice": 450}]},
+                    {"name": "Carton", "factor": 48,
+                     "prices": [{"level": "GROS", "price": 22000, "floorPrice": 21000}]}
+                  ]
+                }
+                """);
+        String productId = product.at("/product/id").asText();
+        String unitId = product.at("/packagings/0/id").asText();
+        String cartonId = product.at("/packagings/1/id").asText();
+        mvc.perform(post("/api/stock/receptions").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"productId": "%s", "packagingId": "%s", "quantity": 1, "totalCost": 19200}
+                        """.formatted(productId, cartonId)))
+                .andExpect(status().isCreated());
+
+        // Nouveau nom, nouveau seuil, prix de détail relevé, code-barres changé, et un conditionnement ajouté.
+        // Le carton n'est pas mentionné : il reste tel quel.
+        mvc.perform(put("/api/products/{id}", productId).contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "name": "Lait concentré sucré",
+                          "baseUnit": "boîte",
+                          "alertThreshold": 24,
+                          "packagings": [
+                            {"id": "%s", "name": "boîte", "factor": 1, "barcode": "6111000000028",
+                             "prices": [{"level": "DETAIL", "price": 550, "floorPrice": 500}]},
+                            {"name": "Paquet de 6", "factor": 6,
+                             "prices": [{"level": "DEMI_GROS", "price": 3000, "floorPrice": 2900}]}
+                          ]
+                        }
+                        """.formatted(unitId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.product.name").value("Lait concentré sucré"))
+                .andExpect(jsonPath("$.product.alertThreshold").value(24))
+                // Le stock et le coût moyen ne bougent pas.
+                .andExpect(jsonPath("$.product.stockQty").value(48))
+                .andExpect(jsonPath("$.product.avgCostMilli").value(400_000))
+                .andExpect(jsonPath("$.packagings.length()").value(3))
+                .andExpect(jsonPath("$.packagings[0].prices[0].price").value(550))
+                .andExpect(jsonPath("$.packagings[0].barcodes[0]").value("6111000000028"))
+                .andExpect(jsonPath("$.packagings[1].name").value("Paquet de 6"))
+                .andExpect(jsonPath("$.packagings[2].name").value("Carton"))
+                .andExpect(jsonPath("$.packagings[2].prices[0].price").value(22000));
+
+        // Refusé : changer le contenu d'un conditionnement existant.
+        mvc.perform(put("/api/products/{id}", productId).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"name": "Lait concentré sucré", "baseUnit": "boîte", "alertThreshold": 24,
+                         "packagings": [{"id": "%s", "name": "Carton", "factor": 24}]}
+                        """.formatted(cartonId)))
+                .andExpect(status().isUnprocessableEntity());
+        // Refusé : un nom de conditionnement déjà pris, un conditionnement d'un autre produit.
+        mvc.perform(put("/api/products/{id}", productId).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"name": "Lait concentré sucré", "baseUnit": "boîte", "alertThreshold": 24,
+                         "packagings": [{"name": "carton", "factor": 12}]}
+                        """))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/products/{id}", productId).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"name": "Lait concentré sucré", "baseUnit": "boîte", "alertThreshold": 24,
+                         "packagings": [{"id": "inconnu", "name": "Sachet", "factor": 1}]}
+                        """))
+                .andExpect(status().isUnprocessableEntity());
+        // Les refus n'ont rien changé : toujours trois conditionnements, le carton toujours à 48.
+        mvc.perform(get("/api/products/{id}", productId))
+                .andExpect(jsonPath("$.packagings.length()").value(3))
+                .andExpect(jsonPath("$.packagings[2].factor").value(48));
+
+        // Désactivé : absent de la liste et de la caisse, mais toujours consultable.
+        mvc.perform(post("/api/products/{id}/active", productId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\": false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.product.active").value(false));
+        mvc.perform(get("/api/products"))
+                .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(productId)).isEmpty());
+        mvc.perform(get("/api/catalog/sellable"))
+                .andExpect(jsonPath("$[?(@.product.id == '%s')]".formatted(productId)).isEmpty());
+        mvc.perform(get("/api/products").param("includeInactive", "true"))
+                .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(productId)).isNotEmpty());
+
+        // Réactivé : de retour partout.
+        mvc.perform(post("/api/products/{id}/active", productId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\": true}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/products"))
+                .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(productId)).isNotEmpty());
     }
 
     @Test

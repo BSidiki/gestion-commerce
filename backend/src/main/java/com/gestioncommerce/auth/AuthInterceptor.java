@@ -71,7 +71,9 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (!user.get().isOwner() && ownerOnly(write, path)) {
             throw new ForbiddenException("Cette opération est réservée au propriétaire.");
         }
-        if (!user.get().isManager() && (MANAGER_ONLY.contains(path) || write && MANAGER_ONLY_WRITES.contains(path))) {
+        // Toute écriture sous /api/products/ modifie ou désactive un produit.
+        boolean catalogWrite = write && (MANAGER_ONLY_WRITES.contains(path) || path.startsWith("/api/products/"));
+        if (!user.get().isManager() && (MANAGER_ONLY.contains(path) || catalogWrite)) {
             throw new ForbiddenException("Cette opération est réservée au propriétaire et à la secrétaire.");
         }
         return true;
