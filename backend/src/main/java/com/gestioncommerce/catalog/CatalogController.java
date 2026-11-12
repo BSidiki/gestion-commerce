@@ -53,6 +53,12 @@ public class CatalogController {
         return catalog.listProducts(lowStock);
     }
 
+    /** Catalogue complet avec conditionnements, prix et codes-barres, pour l'écran de caisse. */
+    @GetMapping("/catalog/sellable")
+    List<ProductDetail> listSellable() {
+        return catalog.listSellable();
+    }
+
     @GetMapping("/products/{id}")
     ProductDetail getProduct(@PathVariable String id) {
         return catalog.getProduct(id);

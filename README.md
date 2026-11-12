@@ -5,16 +5,17 @@ Les données restent sur le PC du commerçant ; aucune fonction ne demande Inter
 
 ## État du projet
 
-Phase 1 (catalogue et stock) : backend et interface. Phase 2 (ventes) : backend.
+Phase 1 (catalogue et stock) et début de la phase 2 (ventes, crédits) : backend et interface.
 
 | Fait | À venir |
 | --- | --- |
 | Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Interface servie par le backend (un seul programme) |
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
-| Réceptions, ajustements motivés, journal des mouvements | Interface de caisse, dépenses, clôture de caisse |
+| Réceptions, ajustements motivés, journal des mouvements | Dépenses, clôture de caisse |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
 | Coût moyen pondéré, alertes de seuil | Sauvegarde, licence, installateur (phase 3) |
-| Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
+| Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | Écran des clients et des remboursements |
+| Écran de caisse (recherche par nom ou code-barres, panier, encaissement, crédit, reçu) et ventes du jour | |
 
 ## Prérequis
 
@@ -62,6 +63,7 @@ npm start                # http://localhost:4200, les appels /api sont relayés 
 | GET | `/api/products/{id}` | Détail d'un produit |
 | POST | `/api/stock/receptions` | Recevoir de la marchandise |
 | POST | `/api/stock/adjustments` | Corriger le stock avec un motif |
+| GET | `/api/catalog/sellable` | Catalogue complet pour la caisse (conditionnements, prix, codes-barres) |
 | GET | `/api/products/{id}/movements` | Historique des mouvements d'un produit |
 | POST | `/api/customers` | Créer un client |
 | GET | `/api/customers` | Lister les clients avec leur solde (`?withDebt=true` : ceux qui doivent) |
@@ -125,5 +127,7 @@ backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
 
 frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
+├── features/pos/         écran de caisse et reçu
+├── features/sales/       ventes du jour, résumé, annulation
 └── features/products/    liste, création et fiche produit
 ```

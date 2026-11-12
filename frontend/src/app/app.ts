@@ -5,11 +5,12 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <header class="topbar">
+    <header class="topbar no-print">
       <a class="brand" routerLink="/">Gestion commerciale</a>
       <nav>
-        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Produits</a>
-        <a routerLink="/produits/nouveau" routerLinkActive="active">Nouveau produit</a>
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Caisse</a>
+        <a routerLink="/ventes" routerLinkActive="active">Ventes du jour</a>
+        <a routerLink="/produits" routerLinkActive="active">Produits</a>
       </nav>
     </header>
     <main class="page">
