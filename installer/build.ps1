@@ -38,7 +38,14 @@ foreach ($tool in 'node', 'npm', 'mvn', 'jpackage') {
 # 1. Interface : produit frontend\dist\frontend\browser
 Push-Location (Join-Path $root 'frontend')
 try {
-    Invoke-Step 'Dépendances de l''interface' { npm ci --no-audit --no-fund }
+    if (Test-Path 'node_modules') {
+        # Dépendances déjà présentes : on les complète sans rien supprimer. « npm ci » effacerait
+        # node_modules, ce que Windows refuse si « npm start » tourne encore dans un autre terminal.
+        Invoke-Step 'Dépendances de l''interface (mise à jour)' { npm install --no-audit --no-fund }
+    }
+    else {
+        Invoke-Step 'Dépendances de l''interface' { npm ci --no-audit --no-fund }
+    }
     Invoke-Step 'Compilation de l''interface' { npm run build }
 }
 finally {

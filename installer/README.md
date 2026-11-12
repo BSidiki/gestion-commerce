@@ -24,6 +24,9 @@ Depuis la racine du dépôt :
 powershell -ExecutionPolicy Bypass -File installer\build.ps1
 ```
 
+Avant de lancer le script, arrêtez le backend (`mvn spring-boot:run`) s'il tourne dans un autre terminal :
+Windows verrouille ses fichiers et la compilation échouerait.
+
 Options : `-Version 0.2.0` pour le numéro de version, `-Port 8787` pour le port local,
 `-SkipTests` pour ne pas relancer les tests.
 
