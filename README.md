@@ -20,7 +20,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Sauvegarde vérifiée (clé USB ou dossier), sauvegarde automatique à la clôture, restauration | |
 | Sauvegardes chiffrées par mot de passe, avec clé de secours | |
 | Installateur Windows : un seul programme avec son propre Java, lancé par un raccourci | |
-| Licence hors ligne : essai de 15 jours, licence signée de 3 mois, lecture seule à l'expiration | |
+| Licence hors ligne : essai de 15 jours, licence signée de 3 mois à partir de son enregistrement, lecture seule à l'échéance | |
 
 ## Prérequis
 
@@ -63,8 +63,9 @@ java -jar target/gestion-commerce-backend-0.1.0-SNAPSHOT.jar     # http://127.0.
 
 ### Licences
 
-Le logiciel fonctionne 15 jours en essai, puis demande une licence signée, valable 3 mois par défaut.
-À l'expiration, il passe en lecture seule : la consultation et la sauvegarde restent possibles.
+Le logiciel fonctionne 15 jours en essai, puis demande une licence signée, valable 3 mois par défaut à partir
+du jour où elle est enregistrée. À l'échéance, il passe en lecture seule : la consultation et la sauvegarde
+restent possibles.
 La création de la clé de signature et l'émission des licences sont décrites dans [tools/README.md](tools/README.md).
 Sans clé publique embarquée (poste de développement), aucune licence n'est demandée.
 

@@ -22,6 +22,9 @@ import java.util.UUID;
  *   java tools/LicenceTool.java emettre --installation ABCD-1234-EF56 --boutique "Alimentation Wend-Kuni"
  *   java tools/LicenceTool.java emettre --installation ABCD-1234-EF56 --boutique "..." --mois 6
  *
+ * La durée d'une licence court à partir du jour où le commerçant l'enregistre dans le logiciel.
+ * Il a 30 jours après l'émission pour le faire (option --delai-activation).
+ *
  * LA CLÉ PRIVÉE NE DOIT JAMAIS QUITTER LE POSTE DE L'ÉDITEUR. Elle n'est rangée ni dans le
  * dépôt Git ni dans le logiciel : quiconque la possède peut fabriquer des licences valides.
  * Gardez-en une copie hors ligne. Si elle est perdue, il faut en créer une nouvelle, publier
@@ -37,6 +40,7 @@ public class LicenceTool {
     private static final Path PUBLIC_KEY_RESOURCE = Path.of("backend", "src", "main", "resources", "licence",
             "cle-publique.txt");
     private static final int DEFAULT_MONTHS = 3;
+    private static final int DEFAULT_ACTIVATION_DAYS = 30;
 
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
@@ -85,6 +89,12 @@ public class LicenceTool {
         if (months < 1 || months > 120) {
             fail("--mois doit être compris entre 1 et 120.");
         }
+        int activationDays = options.containsKey("delai-activation")
+                ? Integer.parseInt(options.get("delai-activation"))
+                : DEFAULT_ACTIVATION_DAYS;
+        if (activationDays < 1 || activationDays > 365) {
+            fail("--delai-activation doit être compris entre 1 et 365 jours.");
+        }
         if (!installId.matches("[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}")) {
             fail("Code d'installation invalide : « " + installId + " ». Il a la forme ABCD-1234-EF56 "
                     + "et se lit dans le logiciel, page Licence.");
@@ -100,14 +110,15 @@ public class LicenceTool {
                 new PKCS8EncodedKeySpec(Base64.getDecoder().decode(Files.readString(keyFile).replaceAll("\\s", ""))));
 
         LocalDate issuedOn = LocalDate.now();
-        LocalDate expiresOn = issuedOn.plusMonths(months);
+        LocalDate activateBefore = issuedOn.plusDays(activationDays);
         String id = UUID.randomUUID().toString();
         String content = "v=1\n"
                 + "id=" + id + "\n"
                 + "boutique=" + shop + "\n"
                 + "installation=" + installId + "\n"
                 + "emise=" + issuedOn + "\n"
-                + "expire=" + expiresOn + "\n";
+                + "duree-mois=" + months + "\n"
+                + "activer-avant=" + activateBefore + "\n";
         byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
         Signature signer = Signature.getInstance("Ed25519");
         signer.initSign(privateKey);
@@ -115,12 +126,13 @@ public class LicenceTool {
         Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
         String token = encoder.encodeToString(bytes) + "." + encoder.encodeToString(signer.sign());
 
-        Path file = Path.of("licence-" + installId + "-expire-" + expiresOn + ".txt");
+        Path file = Path.of("licence-" + installId + "-emise-" + issuedOn + "-" + id.substring(0, 8) + ".txt");
         Files.writeString(file, token + "\n");
 
         System.out.println("Licence pour : " + shop);
         System.out.println("Installation : " + installId);
-        System.out.println("Valable du " + issuedOn + " au " + expiresOn + " inclus (" + months + " mois)");
+        System.out.println("Durée        : " + months + " mois à partir de son enregistrement dans le logiciel");
+        System.out.println("À enregistrer au plus tard le " + activateBefore + " ; ne peut servir qu'une fois");
         System.out.println("Identifiant  : " + id);
         System.out.println("Fichier      : " + file.toAbsolutePath());
         System.out.println();
@@ -156,8 +168,10 @@ public class LicenceTool {
                   java tools/LicenceTool.java nouvelle-cle [--dossier DOSSIER]
                       Crée la clé de signature. À faire une seule fois.
 
-                  java tools/LicenceTool.java emettre --installation CODE --boutique "NOM" [--mois 3] [--cle FICHIER]
+                  java tools/LicenceTool.java emettre --installation CODE --boutique "NOM"
+                          [--mois 3] [--delai-activation 30] [--cle FICHIER]
                       Émet une licence pour une installation. CODE se lit dans le logiciel, page Licence.
+                      La durée court à partir du jour où le commerçant enregistre la licence.
                 """);
     }
 

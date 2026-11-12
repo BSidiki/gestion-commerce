@@ -33,8 +33,8 @@ import com.gestioncommerce.license.LicenseCodec.License;
 import com.gestioncommerce.license.LicenseService;
 
 /**
- * Vie d'une installation : essai de 15 jours, lecture seule, activation d'une licence,
- * expiration, tentative de recul de l'horloge, renouvellement.
+ * Vie d'une installation : essai de 15 jours, lecture seule, enregistrement d'une licence dont
+ * la durée court à partir de ce jour-là, expiration, recul de l'horloge, renouvellements, retouche.
  * Le temps qui passe est simulé en modifiant les dates notées par le logiciel.
  */
 @SpringBootTest
@@ -95,23 +95,33 @@ class LicenseIntegrationTest {
 
         // --- Licences refusées ---
         activate("ceci n'est pas une licence").andExpect(status().isUnprocessableEntity());
-        activate(license("AAAA-BBBB-CCCC", today.plusMonths(3))).andExpect(status().isUnprocessableEntity());
-        activate(license(installId, today.minusDays(1))).andExpect(status().isUnprocessableEntity());
+        // Faite pour une autre installation.
+        activate(license("AAAA-BBBB-CCCC", 3, today.plusDays(30))).andExpect(status().isUnprocessableEntity());
+        // Délai d'enregistrement dépassé depuis hier.
+        activate(license(installId, 3, today.minusDays(1))).andExpect(status().isUnprocessableEntity());
+        // Signée par quelqu'un d'autre que l'éditeur.
         KeyPair impostor = newKeyPair();
-        activate(LicenseCodec.sign(new License(UUID.randomUUID().toString(), "Boutique", installId, today,
-                today.plusMonths(3)), impostor.getPrivate())).andExpect(status().isUnprocessableEntity());
+        activate(LicenseCodec.sign(new License(UUID.randomUUID().toString(), "Boutique", installId, today, 3,
+                today.plusDays(30)), impostor.getPrivate())).andExpect(status().isUnprocessableEntity());
         mvc.perform(get("/api/license")).andExpect(jsonPath("$.readOnly").value(true));
 
-        // --- Licence de trois mois : le logiciel repart ---
-        activate(license(installId, today.plusMonths(3)))
+        // --- Licence de trois mois, émise il y a 20 jours : la durée court à partir d'aujourd'hui ---
+        String firstLicense = LicenseCodec.sign(new License(UUID.randomUUID().toString(),
+                "Alimentation Wend-Kuni", installId, today.minusDays(20), 3, today.plusDays(10)),
+                PUBLISHER.getPrivate());
+        activate(firstLicense)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("ACTIVE"))
                 .andExpect(jsonPath("$.readOnly").value(false))
                 .andExpect(jsonPath("$.shop").value("Alimentation Wend-Kuni"))
+                .andExpect(jsonPath("$.expiresOn").value(today.plusMonths(3).toString()))
                 .andExpect(jsonPath("$.warning").value(false));
         createProduct("Sucre").andExpect(status().isCreated());
 
-        // --- Le temps passe : le logiciel a vu une date postérieure à l'expiration ---
+        // Une licence ne sert qu'une fois.
+        activate(firstLicense).andExpect(status().isUnprocessableEntity());
+
+        // --- Le temps passe : le logiciel a vu une date postérieure à l'échéance ---
         // Même si l'horloge du PC est ensuite reculée (elle indique aujourd'hui), la licence reste expirée.
         LocalDate later = today.plusMonths(3).plusDays(10);
         setting(LicenseService.KEY_LAST_SEEN_ON, later);
@@ -119,24 +129,40 @@ class LicenseIntegrationTest {
                 .andExpect(jsonPath("$.state").value("EXPIREE"))
                 .andExpect(jsonPath("$.readOnly").value(true));
         createProduct("Riz").andExpect(status().isForbidden());
+        // La première licence ne peut toujours pas resservir.
+        activate(firstLicense).andExpect(status().isUnprocessableEntity());
 
-        // --- Renouvellement ---
-        activate(license(installId, later.plusMonths(3)))
+        // --- Renouvellement après expiration : trois mois à partir du jour d'enregistrement ---
+        activate(license(installId, 3, later.plusDays(30)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.state").value("ACTIVE"));
+                .andExpect(jsonPath("$.state").value("ACTIVE"))
+                .andExpect(jsonPath("$.expiresOn").value(later.plusMonths(3).toString()));
         createProduct("Riz").andExpect(status().isCreated());
 
+        // --- Renouvellement anticipé : les trois mois s'ajoutent à ce qui reste ---
+        LocalDate extended = later.plusMonths(3).plusMonths(3);
+        activate(license(installId, 3, later.plusDays(30)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresOn").value(extended.toString()));
+
         // --- À moins de 15 jours de l'échéance, un avertissement ---
-        setting(LicenseService.KEY_LAST_SEEN_ON, later.plusMonths(3).minusDays(5));
+        setting(LicenseService.KEY_LAST_SEEN_ON, extended.minusDays(5));
         mvc.perform(get("/api/license"))
                 .andExpect(jsonPath("$.state").value("ACTIVE"))
                 .andExpect(jsonPath("$.daysLeft").value(6))
                 .andExpect(jsonPath("$.warning").value(true));
+
+        // --- Échéance retouchée à la main dans la base : elle est ignorée ---
+        setting(LicenseService.KEY_EXPIRES_ON, extended.plusYears(10));
+        mvc.perform(get("/api/license"))
+                .andExpect(jsonPath("$.state").value("ESSAI_TERMINE"))
+                .andExpect(jsonPath("$.readOnly").value(true));
+        createProduct("Mil").andExpect(status().isForbidden());
     }
 
-    private String license(String installId, LocalDate expiresOn) throws Exception {
+    private String license(String installId, int months, LocalDate activateBefore) throws Exception {
         return LicenseCodec.sign(new License(UUID.randomUUID().toString(), "Alimentation Wend-Kuni", installId,
-                LocalDate.now(), expiresOn), PUBLISHER.getPrivate());
+                LocalDate.now(), months, activateBefore), PUBLISHER.getPrivate());
     }
 
     private void setting(String key, LocalDate value) {

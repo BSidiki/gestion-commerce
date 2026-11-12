@@ -1,8 +1,9 @@
 # Licences : mode d'emploi de l'éditeur
 
 Le logiciel vérifie ses licences sans Internet. Il fonctionne 15 jours en essai, puis demande une licence.
-Une licence est valable 3 mois par défaut. À l'expiration, le logiciel passe en lecture seule : tout reste
-consultable et sauvegardable, mais plus rien ne s'enregistre.
+Une licence est valable 3 mois par défaut, comptés à partir du jour où le commerçant l'enregistre dans le
+logiciel. À l'échéance, le logiciel passe en lecture seule : tout reste consultable et sauvegardable, mais plus
+rien ne s'enregistre.
 
 Deux clés sont en jeu :
 
@@ -45,11 +46,12 @@ comportement voulu sur un poste de développement, pas pour une version remise �
    java tools/LicenceTool.java emettre --installation 3F9A-C21E-7B40 --boutique "Alimentation Wend-Kuni"
    ```
 
-   Ajoutez `--mois 6` pour une autre durée que 3 mois.
-3. L'outil affiche le texte de la licence et l'enregistre dans un fichier `licence-<code>-expire-<date>.txt`.
+   Ajoutez `--mois 6` pour une autre durée que 3 mois, et `--delai-activation 60` pour laisser plus de
+   30 jours au commerçant pour l'enregistrer.
+3. L'outil affiche le texte de la licence et l'enregistre dans un fichier `licence-<code>-emise-<date>-<id>.txt`.
 4. Envoyez ce texte au commerçant (WhatsApp, clé USB, papier). Il le colle dans la page Licence.
 
-Le renouvellement se fait de la même façon, avec le même code d'installation.
+Le renouvellement se fait de la même façon, avec le même code d'installation et une nouvelle licence.
 
 ## Ce qu'il faut savoir
 
@@ -58,5 +60,13 @@ Le renouvellement se fait de la même façon, avec le même code d'installation.
   reste valable, sans nouvelle émission.
 - Reculer l'horloge du PC ne prolonge ni l'essai ni la licence : le logiciel retient la date la plus tardive
   qu'il a vue.
-- La durée court à partir du jour d'émission, pas du jour où le commerçant colle la licence.
+- La durée court à partir du jour où le commerçant enregistre la licence. La page Licence affiche alors la date
+  d'échéance.
+- Le commerçant a 30 jours après l'émission pour enregistrer la licence. Passé ce délai, elle est refusée et il
+  faut en émettre une autre.
+- Une licence ne s'enregistre qu'une fois. Pour prolonger, il faut une nouvelle licence.
+- Un renouvellement fait avant l'échéance ne fait perdre aucun jour : la nouvelle durée s'ajoute à ce qui reste.
+- L'échéance enregistrée est scellée : modifiée à la main dans la base, elle est ignorée. Cette protection
+  décourage la retouche mais n'arrête pas quelqu'un de déterminé qui sait modifier la base : comme tout système
+  de licence sans Internet, celui-ci repose aussi sur la relation avec le client et sur le support fourni.
 - Tenez un registre des licences émises (boutique, code, date d'expiration) : l'outil n'en garde pas.

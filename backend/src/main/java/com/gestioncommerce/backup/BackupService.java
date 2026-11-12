@@ -201,7 +201,7 @@ public class BackupService {
             work = Files.createTempDirectory("gestion-restauration");
             Path restored = work.resolve(DB_ENTRY);
             Optional<Keys> keysBefore = keys();
-            Optional<java.time.LocalDate> lastSeenBefore = licenses.lastSeenOn();
+            LicenseService.Memory licenseMemory = licenses.remember();
 
             Path zip = archive;
             if (BackupCrypto.isEncrypted(archive)) {
@@ -243,8 +243,9 @@ public class BackupService {
             // Les réglages viennent d'être remplacés par ceux de l'archive : la protection en place
             // sur ce PC avant la restauration est conservée.
             keysBefore.ifPresent(this::saveKeys);
-            // La licence suit les données restaurées, mais la date la plus tardive vue ne recule pas.
-            licenses.keepLastSeenOn(lastSeenBefore);
+            // La licence suit les données restaurées ; la date la plus tardive vue et les licences
+            // déjà enregistrées sur ce PC, elles, ne s'oublient pas.
+            licenses.keep(licenseMemory);
 
             // L'historique vient d'être remplacé par celui de l'archive : on y remet ces deux lignes.
             record(BEFORE_RESTORE, Path.of(safety.path()), "REUSSIE", null);

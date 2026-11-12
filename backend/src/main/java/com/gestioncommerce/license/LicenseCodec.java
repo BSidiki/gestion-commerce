@@ -30,13 +30,17 @@ public final class LicenseCodec {
     }
 
     /**
-     * @param id        identifiant de la licence, pour le suivi par l'éditeur
-     * @param shop      nom de la boutique
-     * @param installId code d'installation auquel la licence est liée
-     * @param issuedOn  date d'émission
-     * @param expiresOn dernier jour de validité, inclus
+     * La durée court à partir du jour où le commerçant enregistre la licence, pas du jour d'émission.
+     *
+     * @param id             identifiant de la licence : une licence ne s'enregistre qu'une fois
+     * @param shop           nom de la boutique
+     * @param installId      code d'installation auquel la licence est liée
+     * @param issuedOn       date d'émission
+     * @param months         durée de validité, en mois, à partir de l'enregistrement
+     * @param activateBefore dernier jour pour enregistrer la licence, inclus
      */
-    public record License(String id, String shop, String installId, LocalDate issuedOn, LocalDate expiresOn) {
+    public record License(String id, String shop, String installId, LocalDate issuedOn, int months,
+            LocalDate activateBefore) {
     }
 
     /** Licence illisible, falsifiée ou destinée à une autre installation. Le message est montré au commerçant. */
@@ -96,7 +100,8 @@ public final class LicenseCodec {
                 + "boutique=" + oneLine(license.shop()) + "\n"
                 + "installation=" + license.installId() + "\n"
                 + "emise=" + license.issuedOn() + "\n"
-                + "expire=" + license.expiresOn() + "\n";
+                + "duree-mois=" + license.months() + "\n"
+                + "activer-avant=" + license.activateBefore() + "\n";
     }
 
     private static License parse(String content) throws InvalidLicenseException {
@@ -111,10 +116,14 @@ public final class LicenseCodec {
             throw new InvalidLicenseException("Cette licence a été faite pour une autre version du logiciel.");
         }
         try {
+            int months = Integer.parseInt(required(fields, "duree-mois"));
+            if (months < 1) {
+                throw new InvalidLicenseException("Cette licence est incomplète.");
+            }
             return new License(required(fields, "id"), required(fields, "boutique"),
-                    required(fields, "installation"), LocalDate.parse(required(fields, "emise")),
-                    LocalDate.parse(required(fields, "expire")));
-        } catch (DateTimeParseException e) {
+                    required(fields, "installation"), LocalDate.parse(required(fields, "emise")), months,
+                    LocalDate.parse(required(fields, "activer-avant")));
+        } catch (DateTimeParseException | NumberFormatException e) {
             throw new InvalidLicenseException("Cette licence est incomplète.");
         }
     }

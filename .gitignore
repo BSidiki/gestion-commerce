@@ -12,4 +12,4 @@ dist/
 installer/build/
 # Clé privée des licences et licences émises : jamais dans le dépôt
 cle-privee*
-licence-*-expire-*.txt
+licence-*-emise-*.txt
