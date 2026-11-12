@@ -5,19 +5,21 @@ Les données restent sur le PC du commerçant ; aucune fonction ne demande Inter
 
 ## État du projet
 
-Phase 1 (catalogue et stock), backend uniquement.
+Phase 1 (catalogue et stock) : backend et interface.
 
 | Fait | À venir |
 | --- | --- |
-| Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Interface Angular |
+| Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Interface servie par le backend (un seul programme) |
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
 | Réceptions, ajustements motivés, journal des mouvements | Ventes, crédits, caisse (phase 2) |
 | Coût moyen pondéré, alertes de seuil | Sauvegarde, licence, installateur (phase 3) |
+| Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 
 ## Prérequis
 
 - JDK 21
 - Maven 3.9 ou plus récent
+- Node.js 22 ou plus récent (interface)
 
 ## Lancer
 
@@ -30,6 +32,16 @@ mvn spring-boot:run      # démarre le service sur http://127.0.0.1:8080
 La base est créée dans `backend/data/gestion.db`. Pour choisir un autre dossier :
 `mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dapp.data-dir=C:/ProgramData/GestionCommerce"`
 ou la variable d'environnement `GESTION_DATA_DIR`.
+
+### Interface
+
+Dans un second terminal, le backend étant démarré :
+
+```bash
+cd frontend
+npm install
+npm start                # http://localhost:4200, les appels /api sont relayés vers le backend
+```
 
 ## Conventions de données
 
@@ -90,4 +102,8 @@ backend/src/main/java/com/gestioncommerce/
 ├── catalog/              catégories, produits, conditionnements, prix
 └── inventory/            réceptions, ajustements, mouvements, coût moyen
 backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
+
+frontend/src/app/
+├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
+└── features/products/    liste, création et fiche produit
 ```
