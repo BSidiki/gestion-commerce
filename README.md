@@ -13,12 +13,13 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
 | Réceptions, ajustements motivés, journal des mouvements | Modification d'un produit |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
-| Coût moyen pondéré, alertes de seuil | Licence hors ligne, installateur Windows (phase 3) |
+| Coût moyen pondéré, alertes de seuil | Licence hors ligne |
 | Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 | Écran de caisse (recherche par nom ou code-barres, panier, encaissement, crédit, reçu) et ventes du jour | |
 | Clients et remboursements, dépenses, ouverture et clôture de caisse avec écart | |
 | Sauvegarde vérifiée (clé USB ou dossier), sauvegarde automatique à la clôture, restauration | |
 | Sauvegardes chiffrées par mot de passe, avec clé de secours | |
+| Installateur Windows : un seul programme avec son propre Java, lancé par un raccourci | |
 
 ## Prérequis
 
@@ -47,6 +48,21 @@ cd frontend
 npm install
 npm start                # http://localhost:4200, les appels /api sont relayés vers le backend
 ```
+
+### Un seul programme
+
+Le backend sert aussi l'interface : après `npm run build` dans `frontend`, un `mvn package` dans `backend`
+embarque l'interface dans le fichier `.jar`, et tout est accessible sur le port du backend.
+
+```bash
+cd frontend && npm run build
+cd ../backend && mvn package
+java -jar target/gestion-commerce-backend-0.1.0-SNAPSHOT.jar     # http://127.0.0.1:8080
+```
+
+### Installateur Windows
+
+`installer\build.ps1` construit l'installateur à remettre au commerçant. Voir [installer/README.md](installer/README.md).
 
 ## Conventions de données
 
@@ -152,6 +168,7 @@ Niveaux de prix : `DETAIL`, `DEMI_GROS`, `GROS`.
 backend/src/main/java/com/gestioncommerce/
 ├── Application.java      démarrage, préparation du dossier de données
 ├── common/               erreurs et réponses d'erreur de l'API
+├── system/               état du logiciel, renvoi des pages vers l'interface
 ├── catalog/              catégories, produits, conditionnements, prix
 ├── inventory/            réceptions, ajustements, mouvements, coût moyen
 ├── customers/            clients, compte client, remboursements
@@ -159,6 +176,8 @@ backend/src/main/java/com/gestioncommerce/
 ├── cash/                 dépenses, ouverture et clôture de caisse
 └── backup/               sauvegarde, restauration, historique
 backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
+
+installer/                script de construction, script Inno Setup, notice
 
 frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)

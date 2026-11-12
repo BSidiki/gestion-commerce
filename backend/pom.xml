@@ -51,6 +51,17 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- L'interface compilée (cd frontend && npm run build) est embarquée dans le programme
+                 et servie par le backend. Si elle n'a pas été compilée, ce dossier est ignoré. -->
+            <resource>
+                <directory>../frontend/dist/frontend/browser</directory>
+                <targetPath>static</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
