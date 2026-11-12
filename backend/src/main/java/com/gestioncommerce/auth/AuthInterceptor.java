@@ -24,7 +24,8 @@ import jakarta.servlet.http.HttpServletResponse;
  *   - Le vendeur vend, encaisse, reçoit la marchandise, note les dépenses, clôture la caisse, consulte.
  *   - La secrétaire fait de même et, en plus, crée et modifie le catalogue et voit les marges.
  *   - Le propriétaire fait tout, et lui seul : corrige le stock, annule une vente, vend sous le prix
- *     plancher, voit le journal, gère les comptes, la licence, et restaure ou protège les sauvegardes.
+ *     plancher, voit le journal, gère les comptes, la licence, les coordonnées de la boutique, et restaure
+ *     ou protège les sauvegardes.
  */
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
@@ -38,7 +39,8 @@ public class AuthInterceptor implements HandlerInterceptor {
     private static final Set<String> OWNER_ONLY = Set.of("/api/audit");
 
     private static final Set<String> OWNER_ONLY_WRITES = Set.of(
-            "/api/stock/adjustments", "/api/license", "/api/backups/restore", "/api/backups/encryption");
+            "/api/stock/adjustments", "/api/license", "/api/backups/restore", "/api/backups/encryption",
+            "/api/shop");
 
     /** Réservé au propriétaire et à la secrétaire, lecture comprise. */
     private static final Set<String> MANAGER_ONLY = Set.of("/api/reports/daily");

@@ -64,6 +64,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/license/license').then(m => m.LicensePage),
   },
   {
+    path: 'boutique',
+    title: 'Boutique',
+    canActivate: [signedIn, ownerOnly],
+    loadComponent: () => import('./features/shop/shop-settings').then(m => m.ShopSettingsPage),
+  },
+  {
     path: 'utilisateurs',
     title: 'Utilisateurs',
     canActivate: [signedIn, ownerOnly],

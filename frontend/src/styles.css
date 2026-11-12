@@ -511,7 +511,49 @@ select:focus-visible,
   .receipt {
     border: none;
     max-width: none;
+    margin: 0;
+    color: #000;
   }
+
+  .receipt .totals dt {
+    color: #000;
+  }
+
+  /* Ticket de caisse : sans marge de page, à la largeur imprimable du rouleau. */
+  .receipt.thermal {
+    page: ticket;
+    width: 72mm;
+    padding: 2mm 2mm 6mm;
+    font-size: 11pt;
+    line-height: 1.25;
+  }
+
+  .receipt.thermal.w58 {
+    width: 48mm;
+    padding: 2mm 1mm 6mm;
+    font-size: 9.5pt;
+  }
+
+  .receipt.thermal .totals .strong {
+    font-size: 1.1em;
+  }
+}
+
+@page ticket {
+  margin: 0;
+}
+
+.receipt-actions {
+  max-width: 480px;
+  margin: 1rem auto 0;
+}
+
+.row-actions {
+  white-space: nowrap;
+}
+
+.row-actions .button + .button {
+  margin-left: 0.4rem;
 }
 
 .ticket td .small {

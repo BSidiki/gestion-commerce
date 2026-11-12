@@ -21,6 +21,7 @@ import { LicenseState } from './core/license-state';
           <a routerLink="/cloture" routerLinkActive="active">Clôture</a>
           <a routerLink="/produits" routerLinkActive="active">Produits</a>
           @if (auth.isOwner()) {
+            <a routerLink="/boutique" routerLinkActive="active">Boutique</a>
             <a routerLink="/sauvegarde" routerLinkActive="active">Sauvegarde</a>
             <a routerLink="/utilisateurs" routerLinkActive="active">Utilisateurs</a>
             <a routerLink="/journal" routerLinkActive="active">Journal</a>
