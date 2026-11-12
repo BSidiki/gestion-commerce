@@ -22,9 +22,9 @@ import jakarta.servlet.http.HttpServletResponse;
  *   - Tant qu'aucun compte n'existe : accès libre.
  *   - Ensuite : toute l'API exige une session, sauf de quoi se connecter.
  *   - Le vendeur vend, encaisse, reçoit la marchandise, note les dépenses, clôture la caisse, consulte.
- *   - Le propriétaire fait tout, et lui seul : crée et modifie le catalogue, corrige le stock,
- *     annule une vente, voit les marges et le journal, gère les comptes, la licence, et restaure
- *     ou protège les sauvegardes.
+ *   - La secrétaire fait de même et, en plus, crée et modifie le catalogue et voit les marges.
+ *   - Le propriétaire fait tout, et lui seul : corrige le stock, annule une vente, vend sous le prix
+ *     plancher, voit le journal, gère les comptes, la licence, et restaure ou protège les sauvegardes.
  */
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
@@ -34,12 +34,16 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
 
-    /** Lecture comprise. */
-    private static final Set<String> OWNER_ONLY = Set.of("/api/audit", "/api/reports/daily");
+    /** Réservé au propriétaire, lecture comprise. */
+    private static final Set<String> OWNER_ONLY = Set.of("/api/audit");
 
     private static final Set<String> OWNER_ONLY_WRITES = Set.of(
-            "/api/products", "/api/categories", "/api/stock/adjustments", "/api/license",
-            "/api/backups/restore", "/api/backups/encryption");
+            "/api/stock/adjustments", "/api/license", "/api/backups/restore", "/api/backups/encryption");
+
+    /** Réservé au propriétaire et à la secrétaire, lecture comprise. */
+    private static final Set<String> MANAGER_ONLY = Set.of("/api/reports/daily");
+
+    private static final Set<String> MANAGER_ONLY_WRITES = Set.of("/api/products", "/api/categories");
 
     private static final Pattern SALE_CANCEL = Pattern.compile("/api/sales/[^/]+/cancel");
 
@@ -63,8 +67,12 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (user.isEmpty()) {
             throw new UnauthorizedException("Connectez-vous pour continuer.");
         }
-        if (!user.get().isOwner() && ownerOnly(request.getMethod(), path)) {
+        boolean write = !READ_METHODS.contains(request.getMethod());
+        if (!user.get().isOwner() && ownerOnly(write, path)) {
             throw new ForbiddenException("Cette opération est réservée au propriétaire.");
+        }
+        if (!user.get().isManager() && (MANAGER_ONLY.contains(path) || write && MANAGER_ONLY_WRITES.contains(path))) {
+            throw new ForbiddenException("Cette opération est réservée au propriétaire et à la secrétaire.");
         }
         return true;
     }
@@ -75,14 +83,11 @@ public class AuthInterceptor implements HandlerInterceptor {
         CurrentUser.clear();
     }
 
-    private static boolean ownerOnly(String method, String path) {
+    private static boolean ownerOnly(boolean write, String path) {
         if (OWNER_ONLY.contains(path) || path.equals("/api/users") || path.startsWith("/api/users/")) {
             return true;
         }
-        if (READ_METHODS.contains(method)) {
-            return false;
-        }
-        return OWNER_ONLY_WRITES.contains(path) || SALE_CANCEL.matcher(path).matches();
+        return write && (OWNER_ONLY_WRITES.contains(path) || SALE_CANCEL.matcher(path).matches());
     }
 
     private static String sessionToken(HttpServletRequest request) {

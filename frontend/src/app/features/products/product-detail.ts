@@ -55,7 +55,7 @@ type Panel = 'none' | 'reception' | 'adjustment';
             <span class="muted">soit {{ text }}</span>
           }
         </div>
-        @if (auth.isOwner()) {
+        @if (auth.isManager()) {
           <div class="stat">
             <span class="label">Coût moyen par {{ d.product.baseUnit }}</span>
             <span class="value">{{ cost(d.product.avgCostMilli) }}</span>

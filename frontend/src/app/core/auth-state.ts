@@ -12,6 +12,8 @@ export class AuthState {
   readonly me = signal<Me | null>(null);
   readonly user = computed(() => this.me()?.user ?? null);
   readonly isOwner = computed(() => this.user()?.role === 'PROPRIETAIRE');
+  /** Propriétaire ou secrétaire : gère le catalogue et voit les marges. */
+  readonly isManager = computed(() => this.isOwner() || this.user()?.role === 'SECRETAIRE');
 
   /** État de connexion, demandé au serveur une seule fois puis gardé en mémoire. */
   ensureLoaded(): Promise<Me> {

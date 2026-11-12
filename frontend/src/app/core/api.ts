@@ -260,7 +260,7 @@ export interface RestoreResult {
   safetyCopyPath: string;
 }
 
-export type Role = 'PROPRIETAIRE' | 'VENDEUR';
+export type Role = 'PROPRIETAIRE' | 'SECRETAIRE' | 'VENDEUR';
 
 export interface User {
   id: string;

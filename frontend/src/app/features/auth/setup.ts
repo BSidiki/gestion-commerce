@@ -13,8 +13,8 @@ import { LicenseState } from '../../core/license-state';
     <form class="card form sign-in" (ngSubmit)="create()">
       <h1>Bienvenue</h1>
       <p class="muted">
-        Créez le compte du propriétaire de la boutique. Lui seul pourra annuler une vente, corriger le stock, voir
-        les marges, gérer les autres comptes et restaurer une sauvegarde.
+        Créez le compte du propriétaire de la boutique. Lui seul pourra annuler une vente, corriger le stock, gérer
+        les autres comptes et restaurer une sauvegarde.
       </p>
       @if (error(); as message) {
         <p class="alert error" role="alert">{{ message }}</p>

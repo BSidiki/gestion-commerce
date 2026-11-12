@@ -21,7 +21,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Sauvegardes chiffrées par mot de passe, avec clé de secours | |
 | Installateur Windows : un seul programme avec son propre Java, lancé par un raccourci | |
 | Licence hors ligne : essai de 15 jours, licence signée de 3 mois à partir de son enregistrement, lecture seule à l'échéance | |
-| Comptes propriétaire et vendeur, droits par rôle, journal des opérations sensibles | |
+| Comptes propriétaire, secrétaire et vendeur, droits par rôle, journal des opérations sensibles | |
 
 ## Prérequis
 
@@ -67,16 +67,16 @@ java -jar target/gestion-commerce-backend-0.1.0-SNAPSHOT.jar     # http://127.0.
 Tant qu'aucun compte n'existe, l'API est en accès libre et l'interface fait créer le compte du propriétaire.
 Ensuite, toute l'API exige une session (cookie `GC_SESSION`, HttpOnly, SameSite=Strict, 12 heures d'inactivité).
 
-| Opération | Vendeur | Propriétaire |
-| --- | --- | --- |
-| Vendre, encaisser, vendre à crédit, enregistrer un remboursement | oui | oui |
-| Recevoir de la marchandise, noter une dépense, ouvrir et clôturer la caisse | oui | oui |
-| Consulter produits, clients, ventes du jour ; faire une sauvegarde | oui | oui |
-| Vendre sous le prix plancher | non | oui, inscrit au journal |
-| Annuler une vente, corriger le stock | non | oui, inscrit au journal |
-| Créer un produit ou une catégorie | non | oui |
-| Voir les marges, le résultat du jour et le journal | non | oui |
-| Gérer les comptes, la licence, restaurer ou protéger les sauvegardes | non | oui |
+| Opération | Vendeur | Secrétaire | Propriétaire |
+| --- | --- | --- | --- |
+| Vendre, encaisser, vendre à crédit, enregistrer un remboursement | oui | oui | oui |
+| Recevoir de la marchandise, noter une dépense, ouvrir et clôturer la caisse | oui | oui | oui |
+| Consulter produits, clients, ventes du jour ; faire une sauvegarde | oui | oui | oui |
+| Créer un produit ou une catégorie | non | oui | oui |
+| Voir les coûts, les marges et le résultat du jour | non | oui | oui |
+| Vendre sous le prix plancher | non | non | oui, inscrit au journal |
+| Annuler une vente, corriger le stock | non | non | oui, inscrit au journal |
+| Voir le journal ; gérer les comptes et la licence ; restaurer ou protéger les sauvegardes | non | non | oui |
 
 Les mots de passe ne sont pas enregistrés : seulement leur empreinte PBKDF2-HMAC-SHA256 (210 000 itérations) et un
 sel par compte. Cinq essais ratés bloquent la connexion à ce compte pendant une minute.

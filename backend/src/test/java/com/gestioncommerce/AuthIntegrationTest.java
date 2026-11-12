@@ -150,6 +150,32 @@ class AuthIntegrationTest {
         login("moussa", "secret-moussa").andExpect(status().isUnauthorized());
         login("moussa", "secret-moussa-2").andExpect(status().isOk());
 
+        // --- La secrétaire : comme le vendeur, plus le catalogue et les marges ---
+        postJson(owner, "/api/users",
+                Map.of("username", "fatou", "displayName", "Fatou", "role", "SECRETAIRE", "password", "secret-fatou"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.role").value("SECRETAIRE"));
+        postJson(owner, "/api/users",
+                Map.of("username", "inconnu", "displayName", "X", "role", "GERANT", "password", "secret-x"))
+                .andExpect(status().isUnprocessableEntity());
+        Cookie secretary = sessionOf(login("fatou", "secret-fatou").andExpect(status().isOk()).andReturn());
+
+        sale(secretary, packagingId, 1200).andExpect(status().isCreated());
+        postJson(secretary, "/api/products", Map.of("name", "Sucre", "baseUnit", "paquet",
+                "packagings", new Object[] { Map.of("name", "paquet", "factor", 1) }))
+                .andExpect(status().isCreated());
+        postJson(secretary, "/api/categories", Map.of("name", "Épicerie")).andExpect(status().isCreated());
+        mvc.perform(get("/api/reports/daily").cookie(secretary)).andExpect(status().isOk());
+
+        sale(secretary, packagingId, 1000).andExpect(status().isUnprocessableEntity()); // sous le prix plancher
+        postJson(secretary, "/api/sales/" + saleId + "/cancel", Map.of("reason", "Erreur"))
+                .andExpect(status().isForbidden());
+        postJson(secretary, "/api/stock/adjustments",
+                Map.of("productId", productId, "quantityDelta", -1, "reason", "CASSE"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/users").cookie(secretary)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/audit").cookie(secretary)).andExpect(status().isForbidden());
+
         // --- Ce que seul le propriétaire peut faire ---
         sale(owner, packagingId, 1000).andExpect(status().isCreated()); // sous le plancher : accordé, et journalisé
         postJson(owner, "/api/sales/" + saleId + "/cancel", Map.of("reason", "Erreur de saisie"))

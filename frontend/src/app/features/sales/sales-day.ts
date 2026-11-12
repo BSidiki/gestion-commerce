@@ -190,8 +190,8 @@ export class SalesDay {
   }
 
   private reload(): void {
-    // Le résumé chiffré (marge, résultat) est réservé au propriétaire.
-    const report = this.auth.isOwner() ? this.api.dailyReport() : of(null);
+    // Le résumé chiffré (marge, résultat) est réservé au propriétaire et à la secrétaire.
+    const report = this.auth.isManager() ? this.api.dailyReport() : of(null);
     forkJoin({ report, sales: this.api.sales() }).subscribe({
       next: ({ report, sales }) => {
         this.report.set(report);

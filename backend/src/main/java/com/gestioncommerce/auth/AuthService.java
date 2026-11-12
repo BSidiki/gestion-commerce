@@ -33,9 +33,10 @@ import com.gestioncommerce.common.UnauthorizedException;
 /**
  * Comptes et sessions.
  *
- * Deux rôles : le propriétaire (tous les droits) et le vendeur (vendre, encaisser,
- * recevoir de la marchandise, consulter). Tant qu'aucun compte n'existe, le logiciel
- * est en accès libre ; le premier compte créé est celui du propriétaire.
+ * Trois rôles : le vendeur (vendre, encaisser, recevoir de la marchandise, consulter),
+ * la secrétaire (en plus : gérer le catalogue et voir les marges) et le propriétaire
+ * (tous les droits). Tant qu'aucun compte n'existe, le logiciel est en accès libre ;
+ * le premier compte créé est celui du propriétaire.
  */
 @Service
 public class AuthService {
@@ -167,7 +168,7 @@ public class AuthService {
 
     @Transactional
     public UserView createUser(String username, String displayName, String role, String password) {
-        if (!CurrentUser.OWNER.equals(role) && !CurrentUser.SELLER.equals(role)) {
+        if (!CurrentUser.isKnownRole(role)) {
             throw new BusinessException("Rôle inconnu.");
         }
         String id = insertUser(username, displayName, role, password);

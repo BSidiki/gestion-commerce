@@ -35,6 +35,7 @@ import { ROLE_LABELS } from '../../core/format';
           Rôle
           <select name="role" [(ngModel)]="role">
             <option value="VENDEUR">Vendeur : vend, encaisse, reçoit la marchandise</option>
+            <option value="SECRETAIRE">Secrétaire : en plus, gère le catalogue et voit les marges</option>
             <option value="PROPRIETAIRE">Propriétaire : tous les droits</option>
           </select>
         </label>

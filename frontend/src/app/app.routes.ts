@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { ownerOnly, signedIn, signedOut } from './core/auth-guards';
+import { managerOnly, ownerOnly, signedIn, signedOut } from './core/auth-guards';
 
 export const routes: Routes = [
   {
@@ -90,7 +90,7 @@ export const routes: Routes = [
   {
     path: 'produits/nouveau',
     title: 'Nouveau produit',
-    canActivate: [signedIn, ownerOnly],
+    canActivate: [signedIn, managerOnly],
     loadComponent: () => import('./features/products/product-form').then(m => m.ProductForm),
   },
   {

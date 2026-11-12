@@ -7,6 +7,7 @@ package com.gestioncommerce.common;
 public final class CurrentUser {
 
     public static final String OWNER = "PROPRIETAIRE";
+    public static final String SECRETARY = "SECRETAIRE";
     public static final String SELLER = "VENDEUR";
 
     public record User(String id, String username, String displayName, String role) {
@@ -14,6 +15,15 @@ public final class CurrentUser {
         public boolean isOwner() {
             return OWNER.equals(role);
         }
+
+        /** Propriétaire ou secrétaire : gère le catalogue et voit les marges. */
+        public boolean isManager() {
+            return OWNER.equals(role) || SECRETARY.equals(role);
+        }
+    }
+
+    public static boolean isKnownRole(String role) {
+        return OWNER.equals(role) || SECRETARY.equals(role) || SELLER.equals(role);
     }
 
     private static final ThreadLocal<User> CURRENT = new ThreadLocal<>();

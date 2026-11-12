@@ -34,6 +34,18 @@ export const ownerOnly: CanActivateFn = async () => {
   }
 };
 
+/** Écrans réservés au propriétaire et à la secrétaire. À placer après signedIn. */
+export const managerOnly: CanActivateFn = async () => {
+  const auth = inject(AuthState);
+  const router = inject(Router);
+  try {
+    const role = (await auth.ensureLoaded()).user?.role;
+    return role === 'PROPRIETAIRE' || role === 'SECRETAIRE' ? true : router.parseUrl('/');
+  } catch {
+    return true;
+  }
+};
+
 /** Écrans de connexion et de première installation : inutiles une fois connecté. */
 export const signedOut: CanActivateFn = async route => {
   const auth = inject(AuthState);

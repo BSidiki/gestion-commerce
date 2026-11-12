@@ -70,6 +70,7 @@ export function stockBreakdown(stockQty: number, baseUnit: string, packagings: P
 
 export const ROLE_LABELS: Record<string, string> = {
   PROPRIETAIRE: 'Propriétaire',
+  SECRETAIRE: 'Secrétaire',
   VENDEUR: 'Vendeur',
 };
 

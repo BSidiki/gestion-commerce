@@ -12,7 +12,7 @@ import { costFromMilli, quantity } from '../../core/format';
   template: `
     <div class="page-head">
       <h1>Produits</h1>
-      @if (auth.isOwner()) {
+      @if (auth.isManager()) {
         <a class="button primary" routerLink="/produits/nouveau">+ Nouveau produit</a>
       }
     </div>
@@ -40,7 +40,7 @@ import { costFromMilli, quantity } from '../../core/format';
     } @else if (products().length === 0 && !error()) {
       <div class="empty">
         <p>Aucun produit pour l'instant.</p>
-        @if (auth.isOwner()) {
+        @if (auth.isManager()) {
           <a class="button primary" routerLink="/produits/nouveau">Créer le premier produit</a>
         }
       </div>
@@ -51,7 +51,7 @@ import { costFromMilli, quantity } from '../../core/format';
             <th>Produit</th>
             <th class="num">Stock</th>
             <th class="num">Seuil d'alerte</th>
-            @if (auth.isOwner()) {
+            @if (auth.isManager()) {
               <th class="num">Coût moyen</th>
               <th class="num">Valeur du stock</th>
             }
@@ -68,7 +68,7 @@ import { costFromMilli, quantity } from '../../core/format';
               </td>
               <td class="num">{{ qty(p.stockQty) }} {{ p.baseUnit }}</td>
               <td class="num">{{ qty(p.alertThreshold) }}</td>
-              @if (auth.isOwner()) {
+              @if (auth.isManager()) {
                 <td class="num">{{ cost(p.avgCostMilli) }}</td>
                 <td class="num">{{ stockValue(p) }}</td>
               }
@@ -82,7 +82,7 @@ import { costFromMilli, quantity } from '../../core/format';
       </table>
       <p class="muted">
         {{ visible().length }} produit(s)
-        @if (auth.isOwner()) {
+        @if (auth.isManager()) {
           · valeur totale du stock affiché : {{ totalValue() }}
         }
       </p>
