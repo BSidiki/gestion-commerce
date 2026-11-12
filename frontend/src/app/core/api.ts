@@ -207,6 +207,53 @@ export interface ExpenseRequest {
   note?: string;
 }
 
+export interface Backup {
+  id: string;
+  kind: 'MANUELLE' | 'AUTOMATIQUE' | 'AVANT_RESTAURATION' | 'RESTAURATION';
+  path: string;
+  sizeBytes: number | null;
+  /** Vrai si l'archive est hors du PC (clé USB, disque externe). */
+  external: boolean;
+  status: 'REUSSIE' | 'ECHOUEE';
+  message: string | null;
+  createdAt: string;
+}
+
+export interface BackupStatus {
+  lastBackupAt: string | null;
+  lastExternalBackupAt: string | null;
+  /** Vrai s'il est temps de sauvegarder sur un support externe. */
+  reminder: boolean;
+}
+
+export interface BackupDestination {
+  path: string;
+  label: string;
+  freeBytes: number;
+  local: boolean;
+  /** Sur le même disque que les données : ne protège pas d'une panne de ce disque. */
+  sameDiskAsData: boolean;
+}
+
+export interface BackupOverview {
+  status: BackupStatus;
+  destinations: BackupDestination[];
+  history: Backup[];
+}
+
+export interface BackupFile {
+  path: string;
+  name: string;
+  sizeBytes: number;
+  modifiedAt: string;
+}
+
+export interface RestoreResult {
+  restoredFrom: string;
+  backupCreatedAt: string;
+  safetyCopyPath: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class Api {
   private readonly http = inject(HttpClient);
@@ -308,6 +355,22 @@ export class Api {
 
   addExpense(request: ExpenseRequest): Observable<Expense> {
     return this.http.post<Expense>('/api/expenses', request);
+  }
+
+  backups(): Observable<BackupOverview> {
+    return this.http.get<BackupOverview>('/api/backups');
+  }
+
+  createBackup(directory: string): Observable<Backup> {
+    return this.http.post<Backup>('/api/backups', { directory });
+  }
+
+  backupFiles(directory: string): Observable<BackupFile[]> {
+    return this.http.get<BackupFile[]>('/api/backups/files', { params: { directory } });
+  }
+
+  restoreBackup(path: string): Observable<RestoreResult> {
+    return this.http.post<RestoreResult>('/api/backups/restore', { path });
   }
 }
 

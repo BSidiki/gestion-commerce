@@ -14,6 +14,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         <a routerLink="/depenses" routerLinkActive="active">Dépenses</a>
         <a routerLink="/cloture" routerLinkActive="active">Clôture</a>
         <a routerLink="/produits" routerLinkActive="active">Produits</a>
+        <a routerLink="/sauvegarde" routerLinkActive="active">Sauvegarde</a>
       </nav>
     </header>
     <main class="page">
