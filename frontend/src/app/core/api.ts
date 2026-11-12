@@ -236,6 +236,8 @@ export interface BackupDestination {
 }
 
 export interface BackupOverview {
+  /** Vrai si les sauvegardes sont protégées par mot de passe. */
+  encryptionEnabled: boolean;
   status: BackupStatus;
   destinations: BackupDestination[];
   history: Backup[];
@@ -246,6 +248,10 @@ export interface BackupFile {
   name: string;
   sizeBytes: number;
   modifiedAt: string;
+  /** Protégée par mot de passe. */
+  encrypted: boolean;
+  /** Ce PC n'en a pas la clé : il faut le mot de passe ou la clé de secours. */
+  needsSecret: boolean;
 }
 
 export interface RestoreResult {
@@ -369,8 +375,13 @@ export class Api {
     return this.http.get<BackupFile[]>('/api/backups/files', { params: { directory } });
   }
 
-  restoreBackup(path: string): Observable<RestoreResult> {
-    return this.http.post<RestoreResult>('/api/backups/restore', { path });
+  restoreBackup(path: string, secret: string): Observable<RestoreResult> {
+    return this.http.post<RestoreResult>('/api/backups/restore', { path, ...(secret ? { secret } : {}) });
+  }
+
+  /** Active la protection des sauvegardes ou change le mot de passe. Renvoie la clé de secours. */
+  protectBackups(password: string): Observable<{ recoveryKey: string }> {
+    return this.http.post<{ recoveryKey: string }>('/api/backups/encryption', { password });
   }
 }
 

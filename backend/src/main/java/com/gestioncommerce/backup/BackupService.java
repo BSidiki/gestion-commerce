@@ -19,9 +19,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -38,6 +40,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gestioncommerce.backup.BackupCrypto.Header;
+import com.gestioncommerce.backup.BackupCrypto.Keys;
 import com.gestioncommerce.backup.BackupDtos.BackupFile;
 import com.gestioncommerce.backup.BackupDtos.BackupOverview;
 import com.gestioncommerce.backup.BackupDtos.BackupStatus;
@@ -71,6 +75,13 @@ public class BackupService {
     private static final String MANIFEST_ENTRY = "manifest.json";
     private static final DateTimeFormatter FILE_STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS");
     private static final String AUTOMATIC_PREFIX = "sauvegarde-auto-";
+    private static final String PLAIN_EXTENSION = ".zip";
+    private static final String ENCRYPTED_EXTENSION = ".gcbak";
+    private static final int MIN_PASSWORD_LENGTH = 8;
+    private static final String KEY_PASSWORD_SALT = "backup.encryption.passwordSalt";
+    private static final String KEY_PASSWORD_KEK = "backup.encryption.passwordKek";
+    private static final String KEY_RECOVERY_SALT = "backup.encryption.recoverySalt";
+    private static final String KEY_RECOVERY_KEK = "backup.encryption.recoveryKek";
     private static final int AUTOMATIC_KEPT = 7;
     private static final int REMINDER_DAYS = 3;
 
@@ -118,7 +129,9 @@ public class BackupService {
                 target = Path.of(directory.trim()).toAbsolutePath().normalize();
             }
             Files.createDirectories(target);
-            Path archive = target.resolve(prefix(kind) + FILE_STAMP.format(LocalDateTime.now()) + ".zip");
+            Optional<Keys> keys = keys();
+            String extension = keys.isPresent() ? ENCRYPTED_EXTENSION : PLAIN_EXTENSION;
+            Path archive = target.resolve(prefix(kind) + FILE_STAMP.format(LocalDateTime.now()) + extension);
 
             Path work = Files.createTempDirectory("gestion-sauvegarde");
             try {
@@ -127,7 +140,13 @@ public class BackupService {
                 checkIntegrity(copy);
                 Manifest manifest = new Manifest(APP_NAME, Timestamps.now(), schemaRank(copy), sha256(copy),
                         Files.size(copy));
-                writeArchive(archive, copy, manifest);
+                if (keys.isPresent()) {
+                    Path zip = work.resolve("archive.zip");
+                    writeArchive(zip, copy, manifest);
+                    encryptArchive(zip, archive, keys.get());
+                } else {
+                    writeArchive(archive, copy, manifest);
+                }
             } finally {
                 deleteQuietly(work);
             }
@@ -163,7 +182,7 @@ public class BackupService {
      * Remplace les données par celles d'une archive, après vérification. L'état actuel
      * est d'abord sauvegardé dans le dossier local, pour pouvoir revenir en arrière.
      */
-    public RestoreResult restore(String archivePath) {
+    public RestoreResult restore(String archivePath, String secret) {
         Path archive;
         try {
             archive = Path.of(archivePath.trim()).toAbsolutePath().normalize();
@@ -178,7 +197,26 @@ public class BackupService {
         try {
             work = Files.createTempDirectory("gestion-restauration");
             Path restored = work.resolve(DB_ENTRY);
-            Manifest manifest = extract(archive, work);
+            Optional<Keys> keysBefore = keys();
+
+            Path zip = archive;
+            if (BackupCrypto.isEncrypted(archive)) {
+                Header header = BackupCrypto.readHeader(archive);
+                // D'abord les clés de ce PC ; sinon ce que la personne a saisi.
+                byte[] dataKey = keysBefore.map(keys -> BackupCrypto.unwrapWithKeys(header, keys)).orElse(null);
+                boolean secretGiven = secret != null && !secret.isBlank();
+                if (dataKey == null && secretGiven) {
+                    dataKey = BackupCrypto.unwrapWithSecret(header, secret);
+                }
+                if (dataKey == null) {
+                    throw new BusinessException(secretGiven
+                            ? "Mot de passe ou clé de secours incorrect pour cette sauvegarde."
+                            : "Cette sauvegarde est protégée : saisissez son mot de passe ou sa clé de secours.");
+                }
+                zip = work.resolve("archive.zip");
+                BackupCrypto.decrypt(archive, zip, dataKey);
+            }
+            Manifest manifest = extract(zip, work);
 
             if (!APP_NAME.equals(manifest.app())) {
                 throw new BusinessException("Ce fichier n'est pas une sauvegarde de ce logiciel.");
@@ -198,6 +236,9 @@ public class BackupService {
             runSqliteCommand("restore from " + quote(restored));
             // Une sauvegarde plus ancienne peut avoir un schéma en retard : on le remet à niveau.
             flyway.migrate();
+            // Les réglages viennent d'être remplacés par ceux de l'archive : la protection en place
+            // sur ce PC avant la restauration est conservée.
+            keysBefore.ifPresent(this::saveKeys);
 
             // L'historique vient d'être remplacé par celui de l'archive : on y remet ces deux lignes.
             record(BEFORE_RESTORE, Path.of(safety.path()), "REUSSIE", null);
@@ -219,7 +260,7 @@ public class BackupService {
     // ---------- Consultation ----------
 
     public BackupOverview overview() {
-        return new BackupOverview(status(), destinations(), history());
+        return new BackupOverview(keys().isPresent(), status(), destinations(), history());
     }
 
     public List<BackupView> history() {
@@ -284,14 +325,96 @@ public class BackupService {
         }
         try (Stream<Path> files = Files.list(dir)) {
             List<BackupFile> found = new ArrayList<>();
-            for (Path file : files.filter(p -> p.getFileName().toString().toLowerCase().endsWith(".zip")).toList()) {
+            Optional<Keys> keys = keys();
+            for (Path file : files.filter(BackupService::looksLikeArchive).toList()) {
+                boolean encrypted = BackupCrypto.isEncrypted(file);
                 found.add(new BackupFile(file.toString(), file.getFileName().toString(), Files.size(file),
-                        Files.getLastModifiedTime(file).toInstant().toString()));
+                        Files.getLastModifiedTime(file).toInstant().toString(), encrypted,
+                        encrypted && !canOpen(file, keys)));
             }
             found.sort(Comparator.comparing(BackupFile::modifiedAt).reversed());
             return found;
         } catch (IOException e) {
             throw new BusinessException("Impossible de lire le dossier « " + dir + " ».");
+        }
+    }
+
+    // ---------- Protection par mot de passe ----------
+
+    /**
+     * Active le chiffrement des sauvegardes, ou change le mot de passe. Renvoie la clé de
+     * secours, à imprimer : elle seule ouvre les sauvegardes si le mot de passe est oublié.
+     * Les sauvegardes déjà faites restent lisibles avec leur mot de passe et leur clé d'origine.
+     */
+    public String enableEncryption(String password) {
+        if (password == null || password.length() < MIN_PASSWORD_LENGTH) {
+            throw new BusinessException("Le mot de passe doit contenir au moins " + MIN_PASSWORD_LENGTH
+                    + " caractères.");
+        }
+        String recoveryKey = BackupCrypto.newRecoveryKey();
+        saveKeys(BackupCrypto.newKeys(password, recoveryKey));
+        return recoveryKey;
+    }
+
+    /** Les clés de chiffrement gardées sur ce PC, si la protection est activée. */
+    private Optional<Keys> keys() {
+        byte[] passwordSalt = setting(KEY_PASSWORD_SALT);
+        byte[] passwordKek = setting(KEY_PASSWORD_KEK);
+        byte[] recoverySalt = setting(KEY_RECOVERY_SALT);
+        byte[] recoveryKek = setting(KEY_RECOVERY_KEK);
+        if (passwordSalt == null || passwordKek == null || recoverySalt == null || recoveryKek == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new Keys(passwordSalt, passwordKek, recoverySalt, recoveryKek));
+    }
+
+    private void saveKeys(Keys keys) {
+        saveSetting(KEY_PASSWORD_SALT, keys.passwordSalt());
+        saveSetting(KEY_PASSWORD_KEK, keys.passwordKek());
+        saveSetting(KEY_RECOVERY_SALT, keys.recoverySalt());
+        saveSetting(KEY_RECOVERY_KEK, keys.recoveryKek());
+    }
+
+    private byte[] setting(String key) {
+        return jdbc.sql("SELECT value FROM app_setting WHERE key = ?")
+                .param(key)
+                .query(String.class)
+                .optional()
+                .map(value -> Base64.getDecoder().decode(value))
+                .orElse(null);
+    }
+
+    private void saveSetting(String key, byte[] value) {
+        jdbc.sql("INSERT INTO app_setting (key, value) VALUES (?, ?) "
+                + "ON CONFLICT (key) DO UPDATE SET value = excluded.value")
+                .params(key, Base64.getEncoder().encodeToString(value))
+                .update();
+    }
+
+    private static boolean canOpen(Path file, Optional<Keys> keys) {
+        if (keys.isEmpty()) {
+            return false;
+        }
+        try {
+            return BackupCrypto.unwrapWithKeys(BackupCrypto.readHeader(file), keys.get()) != null;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private static boolean looksLikeArchive(Path file) {
+        String name = file.getFileName().toString().toLowerCase();
+        return name.endsWith(PLAIN_EXTENSION) || name.endsWith(ENCRYPTED_EXTENSION);
+    }
+
+    /** Chiffre dans un fichier temporaire puis renomme : jamais d'archive à moitié écrite. */
+    private static void encryptArchive(Path zip, Path archive, Keys keys) throws IOException {
+        Path partial = archive.resolveSibling(archive.getFileName() + ".partiel");
+        try {
+            BackupCrypto.encrypt(zip, partial, keys);
+            Files.move(partial, archive, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(partial);
         }
     }
 

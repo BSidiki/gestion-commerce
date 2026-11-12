@@ -3,6 +3,7 @@ package com.gestioncommerce.backup;
 import java.util.List;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public final class BackupDtos {
 
@@ -13,8 +14,18 @@ public final class BackupDtos {
     public record BackupRequest(String directory) {
     }
 
-    /** @param path chemin complet de l'archive à restaurer */
-    public record RestoreRequest(@NotBlank String path) {
+    /**
+     * @param path   chemin complet de l'archive à restaurer
+     * @param secret mot de passe ou clé de secours, si l'archive est protégée et que ce PC n'en a pas la clé
+     */
+    public record RestoreRequest(@NotBlank String path, String secret) {
+    }
+
+    public record EncryptionRequest(@NotBlank @Size(min = 8) String password) {
+    }
+
+    /** @param recoveryKey clé de secours, montrée une seule fois : elle n'est enregistrée nulle part */
+    public record EncryptionResult(String recoveryKey) {
     }
 
     public record BackupView(
@@ -46,13 +57,20 @@ public final class BackupDtos {
     }
 
     public record BackupOverview(
+            boolean encryptionEnabled,
             BackupStatus status,
             List<Destination> destinations,
             List<BackupView> history) {
     }
 
-    /** Archive trouvée dans un dossier, candidate à la restauration. */
-    public record BackupFile(String path, String name, long sizeBytes, String modifiedAt) {
+    /**
+     * Archive trouvée dans un dossier, candidate à la restauration.
+     *
+     * @param encrypted   protégée par mot de passe
+     * @param needsSecret ce PC n'en a pas la clé : il faudra le mot de passe ou la clé de secours
+     */
+    public record BackupFile(String path, String name, long sizeBytes, String modifiedAt, boolean encrypted,
+            boolean needsSecret) {
     }
 
     /**
