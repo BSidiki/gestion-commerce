@@ -5,13 +5,14 @@ Les données restent sur le PC du commerçant ; aucune fonction ne demande Inter
 
 ## État du projet
 
-Phase 1 (catalogue et stock) : backend et interface.
+Phase 1 (catalogue et stock) : backend et interface. Phase 2 (ventes) : backend.
 
 | Fait | À venir |
 | --- | --- |
 | Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Interface servie par le backend (un seul programme) |
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
-| Réceptions, ajustements motivés, journal des mouvements | Ventes, crédits, caisse (phase 2) |
+| Réceptions, ajustements motivés, journal des mouvements | Interface de caisse, dépenses, clôture de caisse |
+| Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
 | Coût moyen pondéré, alertes de seuil | Sauvegarde, licence, installateur (phase 3) |
 | Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 
@@ -62,6 +63,15 @@ npm start                # http://localhost:4200, les appels /api sont relayés 
 | POST | `/api/stock/receptions` | Recevoir de la marchandise |
 | POST | `/api/stock/adjustments` | Corriger le stock avec un motif |
 | GET | `/api/products/{id}/movements` | Historique des mouvements d'un produit |
+| POST | `/api/customers` | Créer un client |
+| GET | `/api/customers` | Lister les clients avec leur solde (`?withDebt=true` : ceux qui doivent) |
+| GET | `/api/customers/{id}` | Fiche client et historique de son compte |
+| POST | `/api/customers/{id}/repayments` | Enregistrer un remboursement de crédit |
+| POST | `/api/sales` | Valider une vente (lignes, paiements, crédit éventuel) |
+| GET | `/api/sales` | Ventes d'une journée (`?date=AAAA-MM-JJ`, aujourd'hui par défaut) |
+| GET | `/api/sales/{id}` | Détail d'une vente |
+| POST | `/api/sales/{id}/cancel` | Annuler une vente avec un motif |
+| GET | `/api/reports/daily` | Résumé du jour : chiffre d'affaires, marge, encaissements, crédits |
 
 ### Exemple
 
@@ -90,6 +100,14 @@ curl -X POST http://127.0.0.1:8080/api/stock/adjustments -H "Content-Type: appli
 }'
 ```
 
+### Règles d'une vente
+
+- La vente, ses lignes, ses paiements, son crédit et ses sorties de stock sont écrits ensemble, ou pas du tout.
+- `idempotencyKey` est un identifiant unique généré par l'interface : renvoyer la même requête renvoie la même vente.
+- Le prix appliqué ne peut pas descendre sous le prix plancher du conditionnement.
+- Ce qui n'est pas encaissé part en crédit, et exige un client.
+- Une vente ne se supprime pas : l'annulation remet le stock et retire le crédit par des écritures inverses.
+
 Motifs d'ajustement : `PERTE`, `CASSE`, `VOL`, `ERREUR_SAISIE`, `INVENTAIRE`.
 Niveaux de prix : `DETAIL`, `DEMI_GROS`, `GROS`.
 
@@ -100,7 +118,9 @@ backend/src/main/java/com/gestioncommerce/
 ├── Application.java      démarrage, préparation du dossier de données
 ├── common/               erreurs et réponses d'erreur de l'API
 ├── catalog/              catégories, produits, conditionnements, prix
-└── inventory/            réceptions, ajustements, mouvements, coût moyen
+├── inventory/            réceptions, ajustements, mouvements, coût moyen
+├── customers/            clients, compte client, remboursements
+└── sales/                ventes, paiements, annulation, rapport du jour
 backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
 
 frontend/src/app/
