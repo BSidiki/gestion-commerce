@@ -5,17 +5,18 @@ Les données restent sur le PC du commerçant ; aucune fonction ne demande Inter
 
 ## État du projet
 
-Phase 1 (catalogue et stock) et début de la phase 2 (ventes, crédits) : backend et interface.
+Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et clôture de caisse, backend et interface.
 
 | Fait | À venir |
 | --- | --- |
 | Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Interface servie par le backend (un seul programme) |
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
-| Réceptions, ajustements motivés, journal des mouvements | Dépenses, clôture de caisse |
+| Réceptions, ajustements motivés, journal des mouvements | Modification d'un produit |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
 | Coût moyen pondéré, alertes de seuil | Sauvegarde, licence, installateur (phase 3) |
-| Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | Écran des clients et des remboursements |
+| Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 | Écran de caisse (recherche par nom ou code-barres, panier, encaissement, crédit, reçu) et ventes du jour | |
+| Clients et remboursements, dépenses, ouverture et clôture de caisse avec écart | |
 
 ## Prérequis
 
@@ -73,7 +74,13 @@ npm start                # http://localhost:4200, les appels /api sont relayés 
 | GET | `/api/sales` | Ventes d'une journée (`?date=AAAA-MM-JJ`, aujourd'hui par défaut) |
 | GET | `/api/sales/{id}` | Détail d'une vente |
 | POST | `/api/sales/{id}/cancel` | Annuler une vente avec un motif |
-| GET | `/api/reports/daily` | Résumé du jour : chiffre d'affaires, marge, encaissements, crédits |
+| GET | `/api/reports/daily` | Résumé du jour : chiffre d'affaires, marge, encaissements, crédits, dépenses, résultat estimé |
+| POST | `/api/expenses` | Enregistrer une dépense |
+| GET | `/api/expenses` | Dépenses d'une journée (`?date=AAAA-MM-JJ`, aujourd'hui par défaut) |
+| GET | `/api/cash/current` | Caisse ouverte, avec les espèces attendues |
+| POST | `/api/cash/open` | Ouvrir la caisse avec un fond de caisse |
+| POST | `/api/cash/close` | Clôturer la caisse avec le montant compté ; calcule l'écart |
+| GET | `/api/cash/sessions` | Les 30 dernières sessions de caisse |
 
 ### Exemple
 
@@ -110,6 +117,13 @@ curl -X POST http://127.0.0.1:8080/api/stock/adjustments -H "Content-Type: appli
 - Ce qui n'est pas encaissé part en crédit, et exige un client.
 - Une vente ne se supprime pas : l'annulation remet le stock et retire le crédit par des écritures inverses.
 
+### Règles de la caisse
+
+- Une seule caisse ouverte à la fois.
+- Espèces attendues = fond de caisse + espèces encaissées (ventes non annulées et remboursements) - dépenses en espèces.
+- Les ventes restent possibles caisse fermée, mais elles n'entrent dans aucune clôture.
+- L'écart est le montant compté moins le montant attendu : négatif s'il manque de l'argent.
+
 Motifs d'ajustement : `PERTE`, `CASSE`, `VOL`, `ERREUR_SAISIE`, `INVENTAIRE`.
 Niveaux de prix : `DETAIL`, `DEMI_GROS`, `GROS`.
 
@@ -122,12 +136,15 @@ backend/src/main/java/com/gestioncommerce/
 ├── catalog/              catégories, produits, conditionnements, prix
 ├── inventory/            réceptions, ajustements, mouvements, coût moyen
 ├── customers/            clients, compte client, remboursements
-└── sales/                ventes, paiements, annulation, rapport du jour
+├── sales/                ventes, paiements, annulation, rapport du jour
+└── cash/                 dépenses, ouverture et clôture de caisse
 backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
 
 frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
 ├── features/pos/         écran de caisse et reçu
 ├── features/sales/       ventes du jour, résumé, annulation
+├── features/customers/   clients, compte client, remboursements
+├── features/cash/        dépenses, ouverture et clôture de caisse
 └── features/products/    liste, création et fiche produit
 ```

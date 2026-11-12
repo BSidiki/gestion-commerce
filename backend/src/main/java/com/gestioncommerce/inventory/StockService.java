@@ -1,6 +1,5 @@
 package com.gestioncommerce.inventory;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.gestioncommerce.common.BusinessException;
 import com.gestioncommerce.common.NotFoundException;
+import com.gestioncommerce.common.Timestamps;
 import com.gestioncommerce.inventory.StockDtos.AdjustmentRequest;
 import com.gestioncommerce.inventory.StockDtos.MovementView;
 import com.gestioncommerce.inventory.StockDtos.ReceptionRequest;
@@ -142,13 +142,13 @@ public class StockService {
                 .param("reason", reason)
                 .param("note", note)
                 .param("stockAfter", stockAfter)
-                .param("createdAt", Instant.now().toString())
+                .param("createdAt", Timestamps.now())
                 .update();
     }
 
     private void updateProduct(String productId, long stockQty, long avgCostMilli) {
         jdbc.sql("UPDATE product SET stock_qty = ?, avg_cost_milli = ?, updated_at = ? WHERE id = ?")
-                .params(stockQty, avgCostMilli, Instant.now().toString(), productId)
+                .params(stockQty, avgCostMilli, Timestamps.now(), productId)
                 .update();
     }
 }

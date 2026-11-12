@@ -12,6 +12,26 @@ export const routes: Routes = [
     loadComponent: () => import('./features/sales/sales-day').then(m => m.SalesDay),
   },
   {
+    path: 'clients',
+    title: 'Clients',
+    loadComponent: () => import('./features/customers/customer-list').then(m => m.CustomerList),
+  },
+  {
+    path: 'clients/:id',
+    title: 'Fiche client',
+    loadComponent: () => import('./features/customers/customer-detail').then(m => m.CustomerDetailPage),
+  },
+  {
+    path: 'depenses',
+    title: 'Dépenses',
+    loadComponent: () => import('./features/cash/expenses').then(m => m.Expenses),
+  },
+  {
+    path: 'cloture',
+    title: 'Clôture de caisse',
+    loadComponent: () => import('./features/cash/cash-closing').then(m => m.CashClosing),
+  },
+  {
     path: 'produits',
     title: 'Produits',
     loadComponent: () => import('./features/products/product-list').then(m => m.ProductList),

@@ -10,6 +10,9 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       <nav>
         <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Caisse</a>
         <a routerLink="/ventes" routerLinkActive="active">Ventes du jour</a>
+        <a routerLink="/clients" routerLinkActive="active">Clients</a>
+        <a routerLink="/depenses" routerLinkActive="active">Dépenses</a>
+        <a routerLink="/cloture" routerLinkActive="active">Clôture</a>
         <a routerLink="/produits" routerLinkActive="active">Produits</a>
       </nav>
     </header>
