@@ -63,6 +63,29 @@ public class StockService {
         return new StockLevel(request.productId(), newStock, current.avgCostMilli());
     }
 
+    /**
+     * Sortie de stock d'une vente. Le stock peut devenir négatif : l'inventaire
+     * initial est rarement exact, et la vente ne doit pas être bloquée pour autant.
+     */
+    @Transactional
+    public StockLevel removeForSale(String productId, long baseQty, String note) {
+        StockLevel current = currentLevel(productId);
+        long newStock = current.stockQty() - baseQty;
+        insertMovement(productId, "VENTE", -baseQty, current.avgCostMilli(), null, note, newStock);
+        updateProduct(productId, newStock, current.avgCostMilli());
+        return new StockLevel(productId, newStock, current.avgCostMilli());
+    }
+
+    /** Remise en stock lors de l'annulation d'une vente. Le coût moyen ne change pas. */
+    @Transactional
+    public StockLevel restoreForCancellation(String productId, long baseQty, String note) {
+        StockLevel current = currentLevel(productId);
+        long newStock = current.stockQty() + baseQty;
+        insertMovement(productId, "ANNULATION", baseQty, current.avgCostMilli(), null, note, newStock);
+        updateProduct(productId, newStock, current.avgCostMilli());
+        return new StockLevel(productId, newStock, current.avgCostMilli());
+    }
+
     @Transactional
     public List<MovementView> movementsOf(String productId) {
         currentLevel(productId);
