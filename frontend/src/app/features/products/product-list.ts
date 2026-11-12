@@ -13,7 +13,10 @@ import { costFromMilli, quantity } from '../../core/format';
     <div class="page-head">
       <h1>Produits</h1>
       @if (auth.isManager()) {
-        <a class="button primary" routerLink="/produits/nouveau">+ Nouveau produit</a>
+        <div class="actions">
+          <a class="button" routerLink="/catalogue/importer">Importer depuis Excel</a>
+          <a class="button primary" routerLink="/produits/nouveau">+ Nouveau produit</a>
+        </div>
       }
     </div>
 
@@ -48,6 +51,7 @@ import { costFromMilli, quantity } from '../../core/format';
         <p>Aucun produit pour l'instant.</p>
         @if (auth.isManager()) {
           <a class="button primary" routerLink="/produits/nouveau">Créer le premier produit</a>
+          <a class="button" routerLink="/catalogue/importer">Importer depuis Excel</a>
         }
       </div>
     } @else {
