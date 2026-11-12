@@ -551,3 +551,40 @@ select:focus-visible,
   margin: 0.75rem 0;
   max-width: 520px;
 }
+
+/* ---------- Licence ---------- */
+
+.license-banner {
+  margin: 0;
+  padding: 0.6rem 1.5rem;
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+  text-align: center;
+}
+
+.license-banner.blocked {
+  background: var(--error-bg);
+  color: var(--error-ink);
+  font-weight: 600;
+}
+
+.license-banner a {
+  color: inherit;
+  margin-left: 0.5rem;
+}
+
+.stat .value.code {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: 0.05em;
+}
+
+textarea {
+  font: inherit;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.9rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  width: 100%;
+  resize: vertical;
+}

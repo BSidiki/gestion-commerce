@@ -37,6 +37,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/backup/backup').then(m => m.BackupPage),
   },
   {
+    path: 'licence',
+    title: 'Licence',
+    loadComponent: () => import('./features/license/license').then(m => m.LicensePage),
+  },
+  {
     path: 'produits',
     title: 'Produits',
     loadComponent: () => import('./features/products/product-list').then(m => m.ProductList),

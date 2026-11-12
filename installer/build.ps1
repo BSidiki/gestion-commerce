@@ -35,6 +35,11 @@ foreach ($tool in 'node', 'npm', 'mvn', 'jpackage') {
     }
 }
 
+if (-not (Test-Path (Join-Path $root 'backend\src\main\resources\licence\cle-publique.txt'))) {
+    Write-Warning ('Aucune clé publique de licence : cette version ne demandera AUCUNE licence. ' +
+        'Pour une version à remettre à un commerçant, lancez d''abord : java tools/LicenceTool.java nouvelle-cle')
+}
+
 # 1. Interface : produit frontend\dist\frontend\browser
 Push-Location (Join-Path $root 'frontend')
 try {

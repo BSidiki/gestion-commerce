@@ -31,7 +31,8 @@ public class SystemController {
             "/cloture",
             "/produits",
             "/produits/{id}",
-            "/sauvegarde"
+            "/sauvegarde",
+            "/licence"
     })
     String interfacePage() {
         return "forward:/index.html";

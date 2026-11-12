@@ -17,6 +17,14 @@ export function quantity(value: number): string {
   return numberFormat.format(value);
 }
 
+const dayFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
+
+/** Date seule (AAAA-MM-JJ) en toutes lettres : « 12 février 2027 ». */
+export function day(isoDate: string): string {
+  const [year, month, dayOfMonth] = isoDate.split('-').map(Number);
+  return dayFormat.format(new Date(year, month - 1, dayOfMonth));
+}
+
 export function dateTime(iso: string): string {
   return dateFormat.format(new Date(iso));
 }
