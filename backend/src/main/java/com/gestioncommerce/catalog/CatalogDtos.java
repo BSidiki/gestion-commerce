@@ -42,6 +42,33 @@ public final class CatalogDtos {
             @NotEmpty @Valid List<PackagingRequest> packagings) {
     }
 
+    /**
+     * Conditionnement d'un produit en cours de modification.
+     *
+     * @param id     identifiant du conditionnement existant, ou null pour en ajouter un
+     * @param factor contenu en unités de base ; ne peut pas changer pour un conditionnement existant
+     * @param prices remplace tous les prix du conditionnement
+     */
+    public record PackagingUpdateRequest(
+            String id,
+            @NotBlank String name,
+            @Min(1) long factor,
+            String barcode,
+            @Valid List<PriceRequest> prices) {
+    }
+
+    /** @param packagings conditionnements à modifier ou à ajouter ; les autres sont laissés tels quels */
+    public record ProductUpdateRequest(
+            @NotBlank String name,
+            String categoryId,
+            @NotBlank String baseUnit,
+            @PositiveOrZero long alertThreshold,
+            @Valid List<PackagingUpdateRequest> packagings) {
+    }
+
+    public record ActiveRequest(boolean active) {
+    }
+
     public record PriceView(PriceLevel level, long price, long floorPrice) {
     }
 
@@ -56,7 +83,8 @@ public final class CatalogDtos {
             long stockQty,
             long avgCostMilli,
             long alertThreshold,
-            boolean lowStock) {
+            boolean lowStock,
+            boolean active) {
     }
 
     public record ProductDetail(ProductSummary product, List<PackagingView> packagings) {

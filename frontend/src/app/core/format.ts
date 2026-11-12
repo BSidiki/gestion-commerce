@@ -82,6 +82,10 @@ export const AUDIT_LABELS: Record<string, string> = {
   COMPTE_DESACTIVE: 'Compte désactivé',
   COMPTE_REACTIVE: 'Compte réactivé',
   MOT_DE_PASSE_CHANGE: 'Mot de passe changé',
+  PRODUIT_MODIFIE: 'Produit modifié',
+  PRIX_MODIFIE: 'Prix modifié',
+  PRODUIT_DESACTIVE: 'Produit désactivé',
+  PRODUIT_REACTIVE: 'Produit réactivé',
   RESTAURATION: 'Sauvegarde restaurée',
 };
 

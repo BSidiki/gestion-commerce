@@ -29,6 +29,12 @@ import { costFromMilli, quantity } from '../../core/format';
         <input type="checkbox" [ngModel]="lowStockOnly()" (ngModelChange)="lowStockOnly.set($event)" />
         Stock bas seulement
       </label>
+      @if (auth.isManager()) {
+        <label class="check">
+          <input type="checkbox" [ngModel]="showInactive()" (ngModelChange)="setShowInactive($event)" />
+          Afficher les produits désactivés
+        </label>
+      }
     </div>
 
     @if (error(); as message) {
@@ -62,7 +68,9 @@ import { costFromMilli, quantity } from '../../core/format';
             <tr>
               <td>
                 <a [routerLink]="['/produits', p.id]">{{ p.name }}</a>
-                @if (p.lowStock) {
+                @if (!p.active) {
+                  <span class="badge neutral">Désactivé</span>
+                } @else if (p.lowStock) {
                   <span class="badge warning">Stock bas</span>
                 }
               </td>
@@ -98,6 +106,7 @@ export class ProductList {
   protected readonly error = signal<string | null>(null);
   protected readonly search = signal('');
   protected readonly lowStockOnly = signal(false);
+  protected readonly showInactive = signal(false);
 
   protected readonly visible = computed(() => {
     const term = this.search().trim().toLowerCase();
@@ -114,7 +123,16 @@ export class ProductList {
   protected readonly cost = costFromMilli;
 
   constructor() {
-    this.api.products().subscribe({
+    this.load();
+  }
+
+  protected setShowInactive(show: boolean): void {
+    this.showInactive.set(show);
+    this.load();
+  }
+
+  private load(): void {
+    this.api.products(false, this.showInactive()).subscribe({
       next: products => {
         this.products.set(products);
         this.loading.set(false);

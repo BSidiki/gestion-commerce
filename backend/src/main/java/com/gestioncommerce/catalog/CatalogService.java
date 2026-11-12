@@ -12,15 +12,18 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.gestioncommerce.audit.AuditService;
 import com.gestioncommerce.catalog.CatalogDtos.CategoryRequest;
 import com.gestioncommerce.catalog.CatalogDtos.CategoryView;
 import com.gestioncommerce.catalog.CatalogDtos.PackagingRequest;
+import com.gestioncommerce.catalog.CatalogDtos.PackagingUpdateRequest;
 import com.gestioncommerce.catalog.CatalogDtos.PackagingView;
 import com.gestioncommerce.catalog.CatalogDtos.PriceRequest;
 import com.gestioncommerce.catalog.CatalogDtos.PriceView;
 import com.gestioncommerce.catalog.CatalogDtos.ProductDetail;
 import com.gestioncommerce.catalog.CatalogDtos.ProductRequest;
 import com.gestioncommerce.catalog.CatalogDtos.ProductSummary;
+import com.gestioncommerce.catalog.CatalogDtos.ProductUpdateRequest;
 import com.gestioncommerce.common.BusinessException;
 import com.gestioncommerce.common.NotFoundException;
 import com.gestioncommerce.common.Timestamps;
@@ -29,12 +32,14 @@ import com.gestioncommerce.common.Timestamps;
 public class CatalogService {
 
     private static final String PRODUCT_COLUMNS =
-            "id, name, category_id, base_unit, stock_qty, avg_cost_milli, alert_threshold";
+            "id, name, category_id, base_unit, stock_qty, avg_cost_milli, alert_threshold, active";
 
     private final JdbcClient jdbc;
+    private final AuditService audit;
 
-    public CatalogService(JdbcClient jdbc) {
+    public CatalogService(JdbcClient jdbc, AuditService audit) {
         this.jdbc = jdbc;
+        this.audit = audit;
     }
 
     // ---------- Catégories ----------
@@ -101,9 +106,137 @@ public class CatalogService {
         return getProduct(productId);
     }
 
+    /**
+     * Modifie un produit. Les conditionnements existants gardent leur contenu (leur facteur) :
+     * le changer fausserait le stock déjà compté. Aucun conditionnement n'est supprimé.
+     */
+    @Transactional
+    public ProductDetail updateProduct(String productId, ProductUpdateRequest request) {
+        ProductDetail before = getProduct(productId);
+        requireCategory(request.categoryId());
+
+        Map<String, PackagingView> existing = new HashMap<>();
+        for (PackagingView packaging : before.packagings()) {
+            existing.put(packaging.id(), packaging);
+        }
+        List<PackagingUpdateRequest> changes = request.packagings() == null ? List.of() : request.packagings();
+
+        // Noms : ceux des conditionnements laissés tels quels, puis ceux de la demande, sans doublon.
+        Set<String> touched = new HashSet<>();
+        for (PackagingUpdateRequest change : changes) {
+            if (change.id() != null) {
+                touched.add(change.id());
+            }
+        }
+        Set<String> barcodes = new HashSet<>();
+        Set<String> names = new HashSet<>();
+        for (PackagingView packaging : before.packagings()) {
+            if (!touched.contains(packaging.id())) {
+                names.add(packaging.name().trim().toLowerCase());
+            }
+        }
+        for (PackagingUpdateRequest change : changes) {
+            String name = change.name().trim();
+            if (change.id() != null) {
+                PackagingView current = existing.get(change.id());
+                if (current == null) {
+                    throw new BusinessException("Le conditionnement « " + name + " » n'appartient pas à ce produit.");
+                }
+                if (current.factor() != change.factor()) {
+                    throw new BusinessException("Le contenu du conditionnement « " + current.name()
+                            + " » ne peut pas être modifié : le stock déjà compté deviendrait faux. "
+                            + "Ajoutez plutôt un nouveau conditionnement.");
+                }
+            } else if (change.factor() < 2) {
+                throw new BusinessException("Un nouveau conditionnement doit contenir au moins 2 unités de base : "
+                        + "l'unité de base existe déjà.");
+            }
+            if (!names.add(name.toLowerCase())) {
+                throw new BusinessException("Le conditionnement « " + name + " » est défini deux fois.");
+            }
+            if (change.barcode() != null && !change.barcode().isBlank() && !barcodes.add(change.barcode().trim())) {
+                throw new BusinessException("Le code-barres " + change.barcode().trim()
+                        + " est saisi pour deux conditionnements.");
+            }
+            requireBarcodeFree(change.barcode(), change.id());
+            requireValidPrices(name, change.prices());
+        }
+
+        jdbc.sql("""
+                UPDATE product
+                SET name = :name, category_id = :categoryId, base_unit = :baseUnit,
+                    alert_threshold = :alertThreshold, updated_at = :updatedAt
+                WHERE id = :id
+                """)
+                .param("name", request.name().trim())
+                .param("categoryId", request.categoryId())
+                .param("baseUnit", request.baseUnit().trim())
+                .param("alertThreshold", request.alertThreshold())
+                .param("updatedAt", now())
+                .param("id", productId)
+                .update();
+
+        List<String> priceChanges = new ArrayList<>();
+        for (PackagingUpdateRequest change : changes) {
+            String packagingId = change.id();
+            if (packagingId == null) {
+                packagingId = newId();
+                jdbc.sql("INSERT INTO product_packaging (id, product_id, name, factor) VALUES (?, ?, ?, ?)")
+                        .params(packagingId, productId, change.name().trim(), change.factor())
+                        .update();
+            } else {
+                jdbc.sql("UPDATE product_packaging SET name = ? WHERE id = ?")
+                        .params(change.name().trim(), packagingId)
+                        .update();
+                describePriceChanges(existing.get(packagingId), change, priceChanges);
+                jdbc.sql("DELETE FROM product_barcode WHERE packaging_id = ?").param(packagingId).update();
+                jdbc.sql("DELETE FROM product_price WHERE packaging_id = ?").param(packagingId).update();
+            }
+            if (change.barcode() != null && !change.barcode().isBlank()) {
+                jdbc.sql("INSERT INTO product_barcode (id, packaging_id, code) VALUES (?, ?, ?)")
+                        .params(newId(), packagingId, change.barcode().trim())
+                        .update();
+            }
+            if (change.prices() != null) {
+                for (PriceRequest price : change.prices()) {
+                    jdbc.sql("""
+                            INSERT INTO product_price (id, packaging_id, level, price, floor_price)
+                            VALUES (?, ?, ?, ?, ?)
+                            """)
+                            .params(newId(), packagingId, price.level().name(), price.price(), price.floorPrice())
+                            .update();
+                }
+            }
+        }
+
+        if (priceChanges.isEmpty()) {
+            audit.log("PRODUIT_MODIFIE", "« " + request.name().trim() + " »");
+        } else {
+            audit.log("PRIX_MODIFIE", "« " + request.name().trim() + " » : " + String.join(" ; ", priceChanges));
+        }
+        return getProduct(productId);
+    }
+
+    /** Un produit désactivé disparaît de la caisse et des listes ; son historique est conservé. */
+    @Transactional
+    public ProductDetail setActive(String productId, boolean active) {
+        ProductDetail product = getProduct(productId);
+        jdbc.sql("UPDATE product SET active = ?, updated_at = ? WHERE id = ?")
+                .params(active ? 1 : 0, now(), productId)
+                .update();
+        audit.log(active ? "PRODUIT_REACTIVE" : "PRODUIT_DESACTIVE", "« " + product.product().name() + " »");
+        return getProduct(productId);
+    }
+
     @Transactional
     public List<ProductSummary> listProducts(boolean lowStockOnly) {
-        String sql = "SELECT " + PRODUCT_COLUMNS + " FROM product WHERE active = 1"
+        return listProducts(lowStockOnly, false);
+    }
+
+    @Transactional
+    public List<ProductSummary> listProducts(boolean lowStockOnly, boolean includeInactive) {
+        String sql = "SELECT " + PRODUCT_COLUMNS + " FROM product WHERE 1 = 1"
+                + (includeInactive ? "" : " AND active = 1")
                 + (lowStockOnly ? " AND stock_qty <= alert_threshold" : "")
                 + " ORDER BY name";
         return jdbc.sql(sql).query((rs, i) -> mapSummary(rs)).list();
@@ -176,13 +309,7 @@ public class CatalogService {
     // ---------- Règles de validation ----------
 
     private void validate(ProductRequest request) {
-        if (request.categoryId() != null) {
-            boolean categoryExists = jdbc.sql("SELECT COUNT(*) FROM category WHERE id = ?")
-                    .param(request.categoryId()).query(Long.class).single() > 0;
-            if (!categoryExists) {
-                throw new BusinessException("Catégorie inconnue.");
-            }
-        }
+        requireCategory(request.categoryId());
 
         // Le stock se compte en unité de base : il faut un conditionnement de facteur 1.
         boolean hasBaseUnit = request.packagings().stream().anyMatch(p -> p.factor() == 1);
@@ -204,31 +331,73 @@ public class CatalogService {
     }
 
     private void validateBarcode(PackagingRequest packaging) {
-        if (packaging.barcode() == null || packaging.barcode().isBlank()) {
-            return;
-        }
-        boolean used = jdbc.sql("SELECT COUNT(*) FROM product_barcode WHERE code = ?")
-                .param(packaging.barcode().trim()).query(Long.class).single() > 0;
-        if (used) {
-            throw new BusinessException(
-                    "Le code-barres " + packaging.barcode().trim() + " est déjà utilisé par un autre produit.");
-        }
+        requireBarcodeFree(packaging.barcode(), null);
     }
 
     private void validatePrices(PackagingRequest packaging) {
-        if (packaging.prices() == null) {
+        requireValidPrices(packaging.name().trim(), packaging.prices());
+    }
+
+    private void requireCategory(String categoryId) {
+        if (categoryId == null) {
+            return;
+        }
+        boolean exists = jdbc.sql("SELECT COUNT(*) FROM category WHERE id = ?")
+                .param(categoryId).query(Long.class).single() > 0;
+        if (!exists) {
+            throw new BusinessException("Catégorie inconnue.");
+        }
+    }
+
+    /** Un code-barres ne désigne qu'un conditionnement. exceptPackagingId : celui qui le porte déjà. */
+    private void requireBarcodeFree(String barcode, String exceptPackagingId) {
+        if (barcode == null || barcode.isBlank()) {
+            return;
+        }
+        boolean used = jdbc.sql("SELECT COUNT(*) FROM product_barcode WHERE code = ? AND packaging_id <> ?")
+                .params(barcode.trim(), exceptPackagingId == null ? "" : exceptPackagingId)
+                .query(Long.class).single() > 0;
+        if (used) {
+            throw new BusinessException("Le code-barres " + barcode.trim() + " est déjà utilisé par un autre produit.");
+        }
+    }
+
+    private static void requireValidPrices(String packagingName, List<PriceRequest> prices) {
+        if (prices == null) {
             return;
         }
         Set<PriceLevel> levels = new HashSet<>();
-        for (PriceRequest price : packaging.prices()) {
+        for (PriceRequest price : prices) {
             if (!levels.add(price.level())) {
-                throw new BusinessException("Le conditionnement « " + packaging.name().trim()
+                throw new BusinessException("Le conditionnement « " + packagingName
                         + " » a deux prix pour le niveau " + price.level() + ".");
             }
             if (price.floorPrice() > price.price()) {
                 throw new BusinessException("Le prix plancher ne peut pas dépasser le prix de vente ("
-                        + packaging.name().trim() + ", " + price.level() + ").");
+                        + packagingName + ", " + price.level() + ").");
             }
+        }
+    }
+
+    /** Pour le journal : « Carton GROS 6500 → 6800 F », « Carton DEMI_GROS ajouté à 6600 F », « Unité GROS supprimé ». */
+    private static void describePriceChanges(PackagingView before, PackagingUpdateRequest after, List<String> out) {
+        Map<PriceLevel, PriceView> old = new HashMap<>();
+        for (PriceView price : before.prices()) {
+            old.put(price.level(), price);
+        }
+        List<PriceRequest> next = after.prices() == null ? List.of() : after.prices();
+        for (PriceRequest price : next) {
+            PriceView previous = old.remove(price.level());
+            String label = before.name() + " " + price.level();
+            if (previous == null) {
+                out.add(label + " ajouté à " + price.price() + " F");
+            } else if (previous.price() != price.price() || previous.floorPrice() != price.floorPrice()) {
+                out.add(label + " " + previous.price() + " → " + price.price() + " F (plancher "
+                        + previous.floorPrice() + " → " + price.floorPrice() + " F)");
+            }
+        }
+        for (PriceLevel removed : old.keySet()) {
+            out.add(before.name() + " " + removed + " supprimé");
         }
     }
 
@@ -251,7 +420,8 @@ public class CatalogService {
         long stock = rs.getLong("stock_qty");
         long threshold = rs.getLong("alert_threshold");
         return new ProductSummary(rs.getString("id"), rs.getString("name"), rs.getString("category_id"),
-                rs.getString("base_unit"), stock, rs.getLong("avg_cost_milli"), threshold, stock <= threshold);
+                rs.getString("base_unit"), stock, rs.getLong("avg_cost_milli"), threshold, stock <= threshold,
+                rs.getInt("active") == 1);
     }
 
     private static String newId() {

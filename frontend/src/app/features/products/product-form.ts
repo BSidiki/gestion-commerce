@@ -1,8 +1,17 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
-import { Api, Category, PackagingRequest, Price, PriceLevel, errorMessage } from '../../core/api';
+import {
+  Api,
+  Category,
+  Packaging,
+  PackagingUpdateRequest,
+  Price,
+  PriceLevel,
+  ProductDetail,
+  errorMessage,
+} from '../../core/api';
 import { PRICE_LEVEL_LABELS } from '../../core/format';
 
 interface PriceDraft {
@@ -12,6 +21,8 @@ interface PriceDraft {
 }
 
 interface PackagingDraft {
+  /** Identifiant du conditionnement existant, ou null s'il est ajouté dans ce formulaire. */
+  id: string | null;
   name: string;
   factor: number | null;
   barcode: string;
@@ -24,13 +35,31 @@ function emptyPrices(): PriceDraft[] {
   return LEVELS.map(level => ({ level, price: null, floorPrice: null }));
 }
 
+/** Les trois niveaux de prix, préremplis avec ceux du conditionnement existant. */
+function pricesOf(packaging: Packaging): PriceDraft[] {
+  return LEVELS.map(level => {
+    const current = packaging.prices.find(p => p.level === level);
+    return { level, price: current?.price ?? null, floorPrice: current?.floorPrice ?? null };
+  });
+}
+
+function draftOf(packaging: Packaging): PackagingDraft {
+  return {
+    id: packaging.id,
+    name: packaging.name,
+    factor: packaging.factor,
+    barcode: packaging.barcodes[0] ?? '',
+    prices: pricesOf(packaging),
+  };
+}
+
 @Component({
   selector: 'app-product-form',
   imports: [FormsModule, RouterLink],
   template: `
     <div class="page-head">
-      <h1>Nouveau produit</h1>
-      <a class="button" routerLink="/produits">Annuler</a>
+      <h1>{{ editingId ? 'Modifier le produit' : 'Nouveau produit' }}</h1>
+      <a class="button" [routerLink]="editingId ? ['/produits', editingId] : ['/produits']">Annuler</a>
     </div>
 
     <form (ngSubmit)="save()" class="form">
@@ -107,8 +136,10 @@ function emptyPrices(): PriceDraft[] {
       @for (packaging of extras(); track $index; let i = $index) {
         <section class="card">
           <div class="page-head">
-            <h2>Conditionnement supplémentaire</h2>
-            <button type="button" class="button danger" (click)="removePackaging(i)">Retirer</button>
+            <h2>{{ packaging.id ? 'Conditionnement' : 'Nouveau conditionnement' }}</h2>
+            @if (!packaging.id) {
+              <button type="button" class="button danger" (click)="removePackaging(i)">Retirer</button>
+            }
           </div>
           <div class="grid">
             <label>
@@ -117,7 +148,17 @@ function emptyPrices(): PriceDraft[] {
             </label>
             <label>
               Contient combien d'unités de base ?
-              <input [name]="'pk-factor-' + i" type="number" min="2" [(ngModel)]="packaging.factor" required />
+              <input
+                [name]="'pk-factor-' + i"
+                type="number"
+                min="2"
+                [(ngModel)]="packaging.factor"
+                [disabled]="!!packaging.id"
+                required
+              />
+              @if (packaging.id) {
+                <small>Non modifiable : le stock déjà compté deviendrait faux.</small>
+              }
             </label>
             <label>
               Code-barres (facultatif)
@@ -167,7 +208,7 @@ function emptyPrices(): PriceDraft[] {
 
       <div class="actions">
         <button type="submit" class="button primary" [disabled]="saving()">
-          {{ saving() ? 'Enregistrement…' : 'Enregistrer le produit' }}
+          {{ saving() ? 'Enregistrement…' : editingId ? 'Enregistrer les modifications' : 'Enregistrer le produit' }}
         </button>
       </div>
     </form>
@@ -177,6 +218,9 @@ export class ProductForm {
   private readonly api = inject(Api);
   private readonly router = inject(Router);
 
+  /** Identifiant du produit en cours de modification, ou null pour une création. */
+  protected readonly editingId = inject(ActivatedRoute).snapshot.paramMap.get('id');
+
   protected name = '';
   protected baseUnit = '';
   protected alertThreshold: number | null = 0;
@@ -184,7 +228,7 @@ export class ProductForm {
   protected newCategory = '';
 
   /** Le conditionnement de facteur 1 : il porte le nom de l'unité de base. */
-  protected readonly base: PackagingDraft = { name: '', factor: 1, barcode: '', prices: emptyPrices() };
+  protected base: PackagingDraft = { id: null, name: '', factor: 1, barcode: '', prices: emptyPrices() };
   protected readonly extras = signal<PackagingDraft[]>([]);
 
   protected readonly categories = signal<Category[]>([]);
@@ -196,6 +240,28 @@ export class ProductForm {
       next: categories => this.categories.set(categories),
       error: e => this.error.set(errorMessage(e)),
     });
+    if (this.editingId) {
+      this.saving.set(true);
+      this.api.product(this.editingId).subscribe({
+        next: detail => {
+          this.fill(detail);
+          this.saving.set(false);
+        },
+        error: e => this.error.set(errorMessage(e)),
+      });
+    }
+  }
+
+  private fill(detail: ProductDetail): void {
+    this.name = detail.product.name;
+    this.baseUnit = detail.product.baseUnit;
+    this.alertThreshold = detail.product.alertThreshold;
+    this.categoryId = detail.product.categoryId;
+    const basePackaging = detail.packagings.find(p => p.factor === 1);
+    if (basePackaging) {
+      this.base = draftOf(basePackaging);
+    }
+    this.extras.set(detail.packagings.filter(p => p.factor !== 1).map(draftOf));
   }
 
   protected levelLabel(level: PriceLevel): string {
@@ -203,7 +269,7 @@ export class ProductForm {
   }
 
   protected addPackaging(): void {
-    this.extras.update(list => [...list, { name: '', factor: null, barcode: '', prices: emptyPrices() }]);
+    this.extras.update(list => [...list, { id: null, name: '', factor: null, barcode: '', prices: emptyPrices() }]);
   }
 
   protected removePackaging(index: number): void {
@@ -236,26 +302,28 @@ export class ProductForm {
     this.saving.set(true);
 
     const baseUnit = this.baseUnit.trim();
-    const packagings: PackagingRequest[] = [
+    const packagings: PackagingUpdateRequest[] = [
       this.toRequest({ ...this.base, name: baseUnit, factor: 1 }),
       ...this.extras().map(p => this.toRequest(p)),
     ];
+    const product = {
+      name: this.name.trim(),
+      categoryId: this.categoryId,
+      baseUnit,
+      alertThreshold: this.alertThreshold ?? 0,
+      packagings,
+    };
+    const request = this.editingId
+      ? this.api.updateProduct(this.editingId, product)
+      : this.api.createProduct(product);
 
-    this.api
-      .createProduct({
-        name: this.name.trim(),
-        categoryId: this.categoryId,
-        baseUnit,
-        alertThreshold: this.alertThreshold ?? 0,
-        packagings,
-      })
-      .subscribe({
-        next: created => this.router.navigate(['/produits', created.product.id]),
-        error: e => {
-          this.error.set(errorMessage(e));
-          this.saving.set(false);
-        },
-      });
+    request.subscribe({
+      next: saved => this.router.navigate(['/produits', saved.product.id]),
+      error: e => {
+        this.error.set(errorMessage(e));
+        this.saving.set(false);
+      },
+    });
   }
 
   private validate(): string | null {
@@ -283,12 +351,13 @@ export class ProductForm {
     return null;
   }
 
-  private toRequest(draft: PackagingDraft): PackagingRequest {
+  private toRequest(draft: PackagingDraft): PackagingUpdateRequest {
     const prices: Price[] = draft.prices
       .filter(p => p.price != null)
       .map(p => ({ level: p.level, price: p.price!, floorPrice: p.floorPrice ?? p.price! }));
     const barcode = draft.barcode.trim();
     return {
+      ...(draft.id ? { id: draft.id } : {}),
       name: draft.name.trim(),
       factor: draft.factor ?? 1,
       ...(barcode ? { barcode } : {}),

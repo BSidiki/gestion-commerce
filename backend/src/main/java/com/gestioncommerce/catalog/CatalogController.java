@@ -6,17 +6,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.gestioncommerce.catalog.CatalogDtos.ActiveRequest;
 import com.gestioncommerce.catalog.CatalogDtos.CategoryRequest;
 import com.gestioncommerce.catalog.CatalogDtos.CategoryView;
 import com.gestioncommerce.catalog.CatalogDtos.ProductDetail;
 import com.gestioncommerce.catalog.CatalogDtos.ProductRequest;
 import com.gestioncommerce.catalog.CatalogDtos.ProductSummary;
+import com.gestioncommerce.catalog.CatalogDtos.ProductUpdateRequest;
 
 import jakarta.validation.Valid;
 
@@ -47,10 +50,25 @@ public class CatalogController {
         return catalog.createProduct(request);
     }
 
-    /** lowStock=true : uniquement les produits au niveau ou sous leur seuil d'alerte. */
+    /**
+     * lowStock=true : uniquement les produits au niveau ou sous leur seuil d'alerte.
+     * includeInactive=true : avec les produits désactivés.
+     */
     @GetMapping("/products")
-    List<ProductSummary> listProducts(@RequestParam(defaultValue = "false") boolean lowStock) {
-        return catalog.listProducts(lowStock);
+    List<ProductSummary> listProducts(
+            @RequestParam(defaultValue = "false") boolean lowStock,
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
+        return catalog.listProducts(lowStock, includeInactive);
+    }
+
+    @PutMapping("/products/{id}")
+    ProductDetail updateProduct(@PathVariable String id, @Valid @RequestBody ProductUpdateRequest request) {
+        return catalog.updateProduct(id, request);
+    }
+
+    @PostMapping("/products/{id}/active")
+    ProductDetail setActive(@PathVariable String id, @RequestBody ActiveRequest request) {
+        return catalog.setActive(id, request.active());
     }
 
     /** Catalogue complet avec conditionnements, prix et codes-barres, pour l'écran de caisse. */

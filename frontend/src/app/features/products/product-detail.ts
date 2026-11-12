@@ -35,7 +35,9 @@ type Panel = 'none' | 'reception' | 'adjustment';
       <div class="page-head">
         <h1>
           {{ d.product.name }}
-          @if (d.product.lowStock) {
+          @if (!d.product.active) {
+            <span class="badge neutral">Désactivé</span>
+          } @else if (d.product.lowStock) {
             <span class="badge warning">Stock bas</span>
           }
         </h1>
@@ -43,6 +45,12 @@ type Panel = 'none' | 'reception' | 'adjustment';
           <button class="button primary" (click)="open('reception')">Recevoir de la marchandise</button>
           @if (auth.isOwner()) {
             <button class="button" (click)="open('adjustment')">Corriger le stock</button>
+          }
+          @if (auth.isManager()) {
+            <a class="button" [routerLink]="['/produits', d.product.id, 'modifier']">Modifier</a>
+            <button class="button" (click)="toggleActive(d)" [disabled]="saving()">
+              {{ d.product.active ? 'Désactiver' : 'Réactiver' }}
+            </button>
           }
         </div>
       </div>
@@ -271,6 +279,16 @@ export class ProductDetailPage {
       const packagings = this.detail()?.packagings ?? [];
       this.receptionPackagingId = packagings.at(-1)?.id ?? null;
     }
+  }
+
+  /** Un produit désactivé disparaît de la caisse et des listes ; son historique reste. */
+  protected toggleActive(detail: ProductDetail): void {
+    const active = !detail.product.active;
+    this.saving.set(true);
+    this.api.setProductActive(this.productId, active).subscribe({
+      next: () => this.done(active ? 'Produit réactivé.' : 'Produit désactivé : il ne paraît plus à la caisse.'),
+      error: e => this.failed(e),
+    });
   }
 
   protected submitReception(): void {

@@ -31,6 +31,7 @@ public class SystemController {
             "/cloture",
             "/produits",
             "/produits/{id}",
+            "/produits/{id}/modifier",
             "/sauvegarde",
             "/licence",
             "/connexion",
