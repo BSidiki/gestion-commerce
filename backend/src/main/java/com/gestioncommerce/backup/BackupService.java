@@ -250,6 +250,10 @@ public class BackupService {
             // L'historique vient d'être remplacé par celui de l'archive : on y remet ces deux lignes.
             record(BEFORE_RESTORE, Path.of(safety.path()), "REUSSIE", null);
             record(RESTORE, archive, "REUSSIE", "Sauvegarde du " + manifest.createdAt());
+            jdbc.sql("INSERT INTO audit_log (id, username, action, detail, created_at) VALUES (?, ?, ?, ?, ?)")
+                    .params(UUID.randomUUID().toString(), com.gestioncommerce.common.CurrentUser.username(),
+                            "RESTAURATION", "Sauvegarde du " + manifest.createdAt() + " restaurée", Timestamps.now())
+                    .update();
             return new RestoreResult(archive.toString(), manifest.createdAt(), safety.path());
         } catch (BusinessException e) {
             throw e;

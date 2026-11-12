@@ -7,7 +7,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.gestioncommerce.audit.AuditService;
 import com.gestioncommerce.common.BusinessException;
+import com.gestioncommerce.common.CurrentUser;
 import com.gestioncommerce.common.NotFoundException;
 import com.gestioncommerce.common.Timestamps;
 import com.gestioncommerce.inventory.StockDtos.AdjustmentRequest;
@@ -23,9 +25,11 @@ import com.gestioncommerce.inventory.StockDtos.StockLevel;
 public class StockService {
 
     private final JdbcClient jdbc;
+    private final AuditService audit;
 
-    public StockService(JdbcClient jdbc) {
+    public StockService(JdbcClient jdbc, AuditService audit) {
         this.jdbc = jdbc;
+        this.audit = audit;
     }
 
     @Transactional
@@ -60,6 +64,8 @@ public class StockService {
         insertMovement(request.productId(), "AJUSTEMENT", request.quantityDelta(), null,
                 request.reason().name(), request.note(), newStock);
         updateProduct(request.productId(), newStock, current.avgCostMilli());
+        audit.log("STOCK_AJUSTE", "Produit " + request.productId() + " : " + request.quantityDelta() + " ("
+                + request.reason().name() + ")");
         return new StockLevel(request.productId(), newStock, current.avgCostMilli());
     }
 
@@ -131,9 +137,12 @@ public class StockService {
             String reason, String note, long stockAfter) {
         jdbc.sql("""
                 INSERT INTO stock_movement
-                    (id, product_id, type, quantity, unit_cost_milli, reason, note, stock_after, created_at)
-                VALUES (:id, :productId, :type, :quantity, :unitCost, :reason, :note, :stockAfter, :createdAt)
+                    (id, product_id, type, quantity, unit_cost_milli, reason, note, stock_after, created_at,
+                     created_by)
+                VALUES (:id, :productId, :type, :quantity, :unitCost, :reason, :note, :stockAfter, :createdAt,
+                        :createdBy)
                 """)
+                .param("createdBy", CurrentUser.username())
                 .param("id", UUID.randomUUID().toString())
                 .param("productId", productId)
                 .param("type", type)

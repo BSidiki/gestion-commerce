@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { Api, ProductSummary, errorMessage } from '../../core/api';
+import { AuthState } from '../../core/auth-state';
 import { costFromMilli, quantity } from '../../core/format';
 
 @Component({
@@ -11,7 +12,9 @@ import { costFromMilli, quantity } from '../../core/format';
   template: `
     <div class="page-head">
       <h1>Produits</h1>
-      <a class="button primary" routerLink="/produits/nouveau">+ Nouveau produit</a>
+      @if (auth.isManager()) {
+        <a class="button primary" routerLink="/produits/nouveau">+ Nouveau produit</a>
+      }
     </div>
 
     <div class="toolbar">
@@ -37,7 +40,9 @@ import { costFromMilli, quantity } from '../../core/format';
     } @else if (products().length === 0 && !error()) {
       <div class="empty">
         <p>Aucun produit pour l'instant.</p>
-        <a class="button primary" routerLink="/produits/nouveau">Créer le premier produit</a>
+        @if (auth.isManager()) {
+          <a class="button primary" routerLink="/produits/nouveau">Créer le premier produit</a>
+        }
       </div>
     } @else {
       <table class="table">
@@ -46,8 +51,10 @@ import { costFromMilli, quantity } from '../../core/format';
             <th>Produit</th>
             <th class="num">Stock</th>
             <th class="num">Seuil d'alerte</th>
-            <th class="num">Coût moyen</th>
-            <th class="num">Valeur du stock</th>
+            @if (auth.isManager()) {
+              <th class="num">Coût moyen</th>
+              <th class="num">Valeur du stock</th>
+            }
           </tr>
         </thead>
         <tbody>
@@ -61,8 +68,10 @@ import { costFromMilli, quantity } from '../../core/format';
               </td>
               <td class="num">{{ qty(p.stockQty) }} {{ p.baseUnit }}</td>
               <td class="num">{{ qty(p.alertThreshold) }}</td>
-              <td class="num">{{ cost(p.avgCostMilli) }}</td>
-              <td class="num">{{ stockValue(p) }}</td>
+              @if (auth.isManager()) {
+                <td class="num">{{ cost(p.avgCostMilli) }}</td>
+                <td class="num">{{ stockValue(p) }}</td>
+              }
             </tr>
           } @empty {
             <tr>
@@ -72,13 +81,17 @@ import { costFromMilli, quantity } from '../../core/format';
         </tbody>
       </table>
       <p class="muted">
-        {{ visible().length }} produit(s) · valeur totale du stock affiché : {{ totalValue() }}
+        {{ visible().length }} produit(s)
+        @if (auth.isManager()) {
+          · valeur totale du stock affiché : {{ totalValue() }}
+        }
       </p>
     }
   `,
 })
 export class ProductList {
   private readonly api = inject(Api);
+  protected readonly auth = inject(AuthState);
 
   protected readonly products = signal<ProductSummary[]>([]);
   protected readonly loading = signal(true);

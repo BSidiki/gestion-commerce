@@ -12,8 +12,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.gestioncommerce.audit.AuditService;
 import com.gestioncommerce.cash.CashService;
 import com.gestioncommerce.common.BusinessException;
+import com.gestioncommerce.common.CurrentUser;
 import com.gestioncommerce.common.NotFoundException;
 import com.gestioncommerce.common.PaymentMethod;
 import com.gestioncommerce.common.Timestamps;
@@ -38,12 +40,15 @@ public class SalesService {
     private final StockService stock;
     private final CustomerService customers;
     private final CashService cash;
+    private final AuditService audit;
 
-    public SalesService(JdbcClient jdbc, StockService stock, CustomerService customers, CashService cash) {
+    public SalesService(JdbcClient jdbc, StockService stock, CustomerService customers, CashService cash,
+            AuditService audit) {
         this.jdbc = jdbc;
         this.stock = stock;
         this.customers = customers;
         this.cash = cash;
+        this.audit = audit;
     }
 
     /** Ligne de vente résolue : la demande, complétée par ce que le catalogue en dit à cet instant. */
@@ -57,7 +62,8 @@ public class SalesService {
             long unitPrice,
             Long listPrice,
             long unitCostMilli,
-            long lineTotal) {
+            long lineTotal,
+            boolean belowFloor) {
     }
 
     private record Catalog(
@@ -115,9 +121,11 @@ public class SalesService {
 
         jdbc.sql("""
                 INSERT INTO sale (id, number, idempotency_key, customer_id, total, paid, credit,
-                                  business_date, created_at)
-                VALUES (:id, :number, :key, :customerId, :total, :paid, :credit, :businessDate, :createdAt)
+                                  business_date, created_at, created_by)
+                VALUES (:id, :number, :key, :customerId, :total, :paid, :credit, :businessDate, :createdAt,
+                        :createdBy)
                 """)
+                .param("createdBy", CurrentUser.username())
                 .param("id", saleId)
                 .param("number", number)
                 .param("key", request.idempotencyKey())
@@ -131,6 +139,10 @@ public class SalesService {
 
         String label = "Vente n° " + number;
         for (Line line : lines) {
+            if (line.belowFloor()) {
+                audit.log("VENTE_SOUS_PLANCHER", label + " : « " + line.productName() + " (" + line.packagingName()
+                        + ") » vendu " + line.unitPrice() + " F");
+            }
             jdbc.sql("""
                     INSERT INTO sale_item (id, sale_id, product_id, packaging_id, product_name, packaging_name,
                                            factor, quantity, unit_price, list_price, unit_cost_milli, line_total)
@@ -190,6 +202,7 @@ public class SalesService {
                 .update();
 
         String label = "Annulation de la vente n° " + sale.number();
+        audit.log("VENTE_ANNULEE", "Vente n° " + sale.number() + " de " + sale.total() + " F : " + reason.trim());
         for (SaleItemView item : sale.items()) {
             stock.restoreForCancellation(item.productId(),
                     Math.multiplyExact(item.quantity(), item.factor()), label);
@@ -312,7 +325,9 @@ public class SalesService {
                 .orElseThrow(() -> new BusinessException("Un article de la vente n'existe plus au catalogue."));
 
         // Le vendeur négocie librement jusqu'au prix plancher le plus bas du conditionnement.
-        if (catalog.minFloorPrice() != null && item.unitPrice() < catalog.minFloorPrice()) {
+        // En dessous, seul le propriétaire connecté peut vendre ; l'opération est inscrite au journal.
+        boolean belowFloor = catalog.minFloorPrice() != null && item.unitPrice() < catalog.minFloorPrice();
+        if (belowFloor && !CurrentUser.isOwner()) {
             throw new BusinessException("Le prix de " + item.unitPrice() + " F pour « " + catalog.productName()
                     + " (" + catalog.packagingName() + ") » est sous le prix plancher de "
                     + catalog.minFloorPrice() + " F.");
@@ -320,7 +335,7 @@ public class SalesService {
 
         return new Line(item.packagingId(), catalog.productId(), catalog.productName(), catalog.packagingName(),
                 catalog.factor(), item.quantity(), item.unitPrice(), catalog.listPrice(), catalog.avgCostMilli(),
-                Math.multiplyExact(item.quantity(), item.unitPrice()));
+                Math.multiplyExact(item.quantity(), item.unitPrice()), belowFloor);
     }
 
     private static Long nullableLong(ResultSet rs, String column) throws SQLException {

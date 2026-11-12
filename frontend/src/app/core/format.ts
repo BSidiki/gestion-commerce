@@ -68,6 +68,23 @@ export function stockBreakdown(stockQty: number, baseUnit: string, packagings: P
   return rest === 0 ? head : `${head} + ${quantity(rest)} ${baseUnit}`;
 }
 
+export const ROLE_LABELS: Record<string, string> = {
+  PROPRIETAIRE: 'Propriétaire',
+  SECRETAIRE: 'Secrétaire',
+  VENDEUR: 'Vendeur',
+};
+
+export const AUDIT_LABELS: Record<string, string> = {
+  VENTE_ANNULEE: 'Vente annulée',
+  VENTE_SOUS_PLANCHER: 'Vente sous le prix plancher',
+  STOCK_AJUSTE: 'Stock corrigé',
+  COMPTE_CREE: 'Compte créé',
+  COMPTE_DESACTIVE: 'Compte désactivé',
+  COMPTE_REACTIVE: 'Compte réactivé',
+  MOT_DE_PASSE_CHANGE: 'Mot de passe changé',
+  RESTAURATION: 'Sauvegarde restaurée',
+};
+
 export const BACKUP_KIND_LABELS: Record<string, string> = {
   MANUELLE: 'Sauvegarde',
   AUTOMATIQUE: 'Sauvegarde automatique',

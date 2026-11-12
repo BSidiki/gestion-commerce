@@ -29,7 +29,10 @@ public class ReadOnlyInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        if (READ_METHODS.contains(request.getMethod()) || ALWAYS_ALLOWED.contains(request.getRequestURI())) {
+        String path = request.getRequestURI();
+        // Se connecter reste possible en lecture seule, sinon personne ne pourrait enregistrer de licence.
+        if (READ_METHODS.contains(request.getMethod()) || ALWAYS_ALLOWED.contains(path)
+                || path.startsWith("/api/auth/")) {
             return true;
         }
         if (licenses.isReadOnly()) {
