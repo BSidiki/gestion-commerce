@@ -13,10 +13,11 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
 | Réceptions, ajustements motivés, journal des mouvements | Modification d'un produit |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
-| Coût moyen pondéré, alertes de seuil | Sauvegarde, licence, installateur (phase 3) |
+| Coût moyen pondéré, alertes de seuil | Chiffrement des sauvegardes, licence, installateur (phase 3) |
 | Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 | Écran de caisse (recherche par nom ou code-barres, panier, encaissement, crédit, reçu) et ventes du jour | |
 | Clients et remboursements, dépenses, ouverture et clôture de caisse avec écart | |
+| Sauvegarde vérifiée (clé USB ou dossier), sauvegarde automatique à la clôture, restauration | |
 
 ## Prérequis
 
@@ -81,6 +82,10 @@ npm start                # http://localhost:4200, les appels /api sont relayés 
 | POST | `/api/cash/open` | Ouvrir la caisse avec un fond de caisse |
 | POST | `/api/cash/close` | Clôturer la caisse avec le montant compté ; calcule l'écart |
 | GET | `/api/cash/sessions` | Les 30 dernières sessions de caisse |
+| GET | `/api/backups` | État des sauvegardes, emplacements proposés, historique |
+| POST | `/api/backups` | Créer une sauvegarde dans un dossier (dossier local par défaut) |
+| GET | `/api/backups/files` | Archives présentes dans un dossier (`?directory=`) |
+| POST | `/api/backups/restore` | Restaurer une archive, après copie de l'état actuel |
 
 ### Exemple
 
@@ -124,6 +129,15 @@ curl -X POST http://127.0.0.1:8080/api/stock/adjustments -H "Content-Type: appli
 - Les ventes restent possibles caisse fermée, mais elles n'entrent dans aucune clôture.
 - L'écart est le montant compté moins le montant attendu : négatif s'il manque de l'argent.
 
+### Sauvegarde et restauration
+
+- Une sauvegarde est un fichier `.zip` contenant la base et une fiche (date, niveau du schéma, empreinte SHA-256).
+- La copie utilise le mécanisme de sauvegarde en ligne de SQLite : elle est cohérente même pendant l'utilisation, et sa cohérence est vérifiée avant l'archivage.
+- Chaque clôture de caisse déclenche une sauvegarde automatique dans `<dossier de données>/sauvegardes` ; les 7 dernières sont gardées.
+- Un rappel s'affiche si aucune sauvegarde hors du dossier de données n'a été faite depuis 3 jours.
+- La restauration vérifie l'archive (empreinte, cohérence, version), garde une copie de l'état actuel, puis remplace les données sans redémarrer le logiciel.
+- Les archives ne sont pas encore chiffrées : une clé USB perdue expose les données.
+
 Motifs d'ajustement : `PERTE`, `CASSE`, `VOL`, `ERREUR_SAISIE`, `INVENTAIRE`.
 Niveaux de prix : `DETAIL`, `DEMI_GROS`, `GROS`.
 
@@ -137,7 +151,8 @@ backend/src/main/java/com/gestioncommerce/
 ├── inventory/            réceptions, ajustements, mouvements, coût moyen
 ├── customers/            clients, compte client, remboursements
 ├── sales/                ventes, paiements, annulation, rapport du jour
-└── cash/                 dépenses, ouverture et clôture de caisse
+├── cash/                 dépenses, ouverture et clôture de caisse
+└── backup/               sauvegarde, restauration, historique
 backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
 
 frontend/src/app/
@@ -146,5 +161,6 @@ frontend/src/app/
 ├── features/sales/       ventes du jour, résumé, annulation
 ├── features/customers/   clients, compte client, remboursements
 ├── features/cash/        dépenses, ouverture et clôture de caisse
+├── features/backup/      sauvegarde et restauration
 └── features/products/    liste, création et fiche produit
 ```

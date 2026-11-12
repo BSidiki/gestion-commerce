@@ -517,3 +517,8 @@ select:focus-visible,
 .ticket td .small {
   white-space: nowrap;
 }
+
+.table .path {
+  word-break: break-all;
+  font-size: 0.85rem;
+}

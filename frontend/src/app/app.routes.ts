@@ -32,6 +32,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/cash/cash-closing').then(m => m.CashClosing),
   },
   {
+    path: 'sauvegarde',
+    title: 'Sauvegarde',
+    loadComponent: () => import('./features/backup/backup').then(m => m.BackupPage),
+  },
+  {
     path: 'produits',
     title: 'Produits',
     loadComponent: () => import('./features/products/product-list').then(m => m.ProductList),

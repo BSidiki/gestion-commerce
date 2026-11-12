@@ -60,6 +60,29 @@ export function stockBreakdown(stockQty: number, baseUnit: string, packagings: P
   return rest === 0 ? head : `${head} + ${quantity(rest)} ${baseUnit}`;
 }
 
+export const BACKUP_KIND_LABELS: Record<string, string> = {
+  MANUELLE: 'Sauvegarde',
+  AUTOMATIQUE: 'Sauvegarde automatique',
+  AVANT_RESTAURATION: 'Copie avant restauration',
+  RESTAURATION: 'Restauration',
+};
+
+const sizeFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
+
+/** Taille de fichier lisible : octets, Ko, Mo ou Go. */
+export function fileSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} octets`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${sizeFormat.format(bytes / 1024)} Ko`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${sizeFormat.format(bytes / (1024 * 1024))} Mo`;
+  }
+  return `${sizeFormat.format(bytes / (1024 * 1024 * 1024))} Go`;
+}
+
 export const LEDGER_LABELS: Record<string, string> = {
   CREDIT: 'Vente à crédit',
   REMBOURSEMENT: 'Remboursement',

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.gestioncommerce.backup.BackupService;
 import com.gestioncommerce.cash.CashDtos.CashSessionView;
 import com.gestioncommerce.cash.CashDtos.CashStatus;
 import com.gestioncommerce.cash.CashDtos.CloseRequest;
@@ -27,9 +28,11 @@ import jakarta.validation.Valid;
 public class CashController {
 
     private final CashService cash;
+    private final BackupService backups;
 
-    public CashController(CashService cash) {
+    public CashController(CashService cash, BackupService backups) {
         this.cash = cash;
+        this.backups = backups;
     }
 
     @GetMapping("/cash/current")
@@ -45,7 +48,10 @@ public class CashController {
 
     @PostMapping("/cash/close")
     CashSessionView close(@Valid @RequestBody CloseRequest request) {
-        return cash.close(request);
+        CashSessionView closed = cash.close(request);
+        // Chaque clôture déclenche une sauvegarde locale : la journée est à l'abri sans y penser.
+        backups.createAutomatic();
+        return closed;
     }
 
     @GetMapping("/cash/sessions")
