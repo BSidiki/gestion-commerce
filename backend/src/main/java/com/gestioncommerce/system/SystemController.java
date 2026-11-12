@@ -32,7 +32,12 @@ public class SystemController {
             "/produits",
             "/produits/{id}",
             "/sauvegarde",
-            "/licence"
+            "/licence",
+            "/connexion",
+            "/installation",
+            "/utilisateurs",
+            "/compte",
+            "/journal"
     })
     String interfacePage() {
         return "forward:/index.html";

@@ -13,7 +13,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
 | Réceptions, ajustements motivés, journal des mouvements | Modification d'un produit |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
-| Coût moyen pondéré, alertes de seuil | Comptes utilisateurs et rôles |
+| Coût moyen pondéré, alertes de seuil | Import du catalogue depuis Excel |
 | Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 | Écran de caisse (recherche par nom ou code-barres, panier, encaissement, crédit, reçu) et ventes du jour | |
 | Clients et remboursements, dépenses, ouverture et clôture de caisse avec écart | |
@@ -21,6 +21,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Sauvegardes chiffrées par mot de passe, avec clé de secours | |
 | Installateur Windows : un seul programme avec son propre Java, lancé par un raccourci | |
 | Licence hors ligne : essai de 15 jours, licence signée de 3 mois à partir de son enregistrement, lecture seule à l'échéance | |
+| Comptes propriétaire et vendeur, droits par rôle, journal des opérations sensibles | |
 
 ## Prérequis
 
@@ -60,6 +61,28 @@ cd frontend && npm run build
 cd ../backend && mvn package
 java -jar target/gestion-commerce-backend-0.1.0-SNAPSHOT.jar     # http://127.0.0.1:8080
 ```
+
+### Comptes et droits
+
+Tant qu'aucun compte n'existe, l'API est en accès libre et l'interface fait créer le compte du propriétaire.
+Ensuite, toute l'API exige une session (cookie `GC_SESSION`, HttpOnly, SameSite=Strict, 12 heures d'inactivité).
+
+| Opération | Vendeur | Propriétaire |
+| --- | --- | --- |
+| Vendre, encaisser, vendre à crédit, enregistrer un remboursement | oui | oui |
+| Recevoir de la marchandise, noter une dépense, ouvrir et clôturer la caisse | oui | oui |
+| Consulter produits, clients, ventes du jour ; faire une sauvegarde | oui | oui |
+| Vendre sous le prix plancher | non | oui, inscrit au journal |
+| Annuler une vente, corriger le stock | non | oui, inscrit au journal |
+| Créer un produit ou une catégorie | non | oui |
+| Voir les marges, le résultat du jour et le journal | non | oui |
+| Gérer les comptes, la licence, restaurer ou protéger les sauvegardes | non | oui |
+
+Les mots de passe ne sont pas enregistrés : seulement leur empreinte PBKDF2-HMAC-SHA256 (210 000 itérations) et un
+sel par compte. Cinq essais ratés bloquent la connexion à ce compte pendant une minute.
+
+Les coûts d'achat sont masqués au vendeur dans l'interface, mais l'API des produits les renvoie encore à toute
+personne connectée : ce n'est pas une barrière de sécurité.
 
 ### Licences
 
@@ -108,6 +131,13 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/cash/open` | Ouvrir la caisse avec un fond de caisse |
 | POST | `/api/cash/close` | Clôturer la caisse avec le montant compté ; calcule l'écart |
 | GET | `/api/cash/sessions` | Les 30 dernières sessions de caisse |
+| GET | `/api/auth/me` | Qui est connecté ; indique si le compte du propriétaire reste à créer |
+| POST | `/api/auth/setup` | Créer le compte du propriétaire (une seule fois) |
+| POST | `/api/auth/login`, `/api/auth/logout` | Ouvrir, fermer la session |
+| POST | `/api/auth/password` | Changer son propre mot de passe |
+| GET, POST | `/api/users` | Lister, créer les comptes (propriétaire) |
+| POST | `/api/users/{id}/password`, `/api/users/{id}/active` | Redonner un mot de passe, désactiver ou réactiver un compte (propriétaire) |
+| GET | `/api/audit` | Journal des opérations sensibles (propriétaire) |
 | GET | `/api/license` | État de la licence et code d'installation |
 | POST | `/api/license` | Enregistrer une licence |
 | GET | `/api/backups` | État des sauvegardes, emplacements proposés, historique |
@@ -178,7 +208,9 @@ Niveaux de prix : `DETAIL`, `DEMI_GROS`, `GROS`.
 ```
 backend/src/main/java/com/gestioncommerce/
 ├── Application.java      démarrage, préparation du dossier de données
-├── common/               erreurs et réponses d'erreur de l'API
+├── common/               erreurs et réponses d'erreur de l'API, personne connectée
+├── auth/                 comptes, sessions, droits par rôle
+├── audit/                journal des opérations sensibles
 ├── system/               état du logiciel, renvoi des pages vers l'interface
 ├── catalog/              catégories, produits, conditionnements, prix
 ├── inventory/            réceptions, ajustements, mouvements, coût moyen
@@ -199,5 +231,7 @@ frontend/src/app/
 ├── features/customers/   clients, compte client, remboursements
 ├── features/cash/        dépenses, ouverture et clôture de caisse
 ├── features/backup/      sauvegarde et restauration
+├── features/auth/        connexion, première installation
+├── features/users/       comptes, mon compte, journal
 └── features/products/    liste, création et fiche produit
 ```

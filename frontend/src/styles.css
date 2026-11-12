@@ -588,3 +588,50 @@ textarea {
   width: 100%;
   resize: vertical;
 }
+
+/* ---------- Connexion et comptes ---------- */
+
+.sign-in {
+  max-width: 440px;
+  margin: 3rem auto;
+}
+
+.sign-in h1 {
+  margin-bottom: 0.25rem;
+}
+
+.topbar {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+
+.topbar nav {
+  flex-wrap: wrap;
+}
+
+.topbar .who {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.topbar .who a {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.topbar .who a.active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.topbar .who button {
+  font: inherit;
+  color: var(--primary-ink);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}

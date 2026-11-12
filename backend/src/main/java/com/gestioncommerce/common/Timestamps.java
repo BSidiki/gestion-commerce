@@ -19,4 +19,8 @@ public final class Timestamps {
     public static String now() {
         return FORMAT.format(Instant.now());
     }
+
+    public static String of(Instant instant) {
+        return FORMAT.format(instant);
+    }
 }

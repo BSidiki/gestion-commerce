@@ -260,6 +260,32 @@ export interface RestoreResult {
   safetyCopyPath: string;
 }
 
+export type Role = 'PROPRIETAIRE' | 'VENDEUR';
+
+export interface User {
+  id: string;
+  username: string;
+  displayName: string;
+  role: Role;
+}
+
+export interface Me {
+  /** Vrai tant qu'aucun compte n'existe : il faut créer celui du propriétaire. */
+  setupRequired: boolean;
+  user: User | null;
+}
+
+export interface UserAccount extends User {
+  active: boolean;
+}
+
+export interface AuditEntry {
+  username: string | null;
+  action: string;
+  detail: string | null;
+  createdAt: string;
+}
+
 export interface LicenseStatus {
   /** DESACTIVEE : version sans licences (développement). */
   state: 'DESACTIVEE' | 'ESSAI' | 'ACTIVE' | 'ESSAI_TERMINE' | 'EXPIREE';
@@ -374,6 +400,46 @@ export class Api {
 
   addExpense(request: ExpenseRequest): Observable<Expense> {
     return this.http.post<Expense>('/api/expenses', request);
+  }
+
+  me(): Observable<Me> {
+    return this.http.get<Me>('/api/auth/me');
+  }
+
+  setup(username: string, displayName: string, password: string): Observable<Me> {
+    return this.http.post<Me>('/api/auth/setup', { username, displayName, password });
+  }
+
+  login(username: string, password: string): Observable<Me> {
+    return this.http.post<Me>('/api/auth/login', { username, password });
+  }
+
+  logout(): Observable<void> {
+    return this.http.post<void>('/api/auth/logout', {});
+  }
+
+  changeOwnPassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>('/api/auth/password', { currentPassword, newPassword });
+  }
+
+  users(): Observable<UserAccount[]> {
+    return this.http.get<UserAccount[]>('/api/users');
+  }
+
+  createUser(username: string, displayName: string, role: Role, password: string): Observable<UserAccount> {
+    return this.http.post<UserAccount>('/api/users', { username, displayName, role, password });
+  }
+
+  resetUserPassword(userId: string, password: string): Observable<void> {
+    return this.http.post<void>(`/api/users/${userId}/password`, { password });
+  }
+
+  setUserActive(userId: string, active: boolean): Observable<void> {
+    return this.http.post<void>(`/api/users/${userId}/active`, { active });
+  }
+
+  audit(): Observable<AuditEntry[]> {
+    return this.http.get<AuditEntry[]>('/api/audit');
   }
 
   licenseStatus(): Observable<LicenseStatus> {

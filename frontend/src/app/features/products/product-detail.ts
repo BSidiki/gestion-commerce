@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { AdjustmentReason, Api, Movement, ProductDetail, errorMessage } from '../../core/api';
+import { AuthState } from '../../core/auth-state';
 import {
   MOVEMENT_LABELS,
   PRICE_LEVEL_LABELS,
@@ -40,7 +41,9 @@ type Panel = 'none' | 'reception' | 'adjustment';
         </h1>
         <div class="inline">
           <button class="button primary" (click)="open('reception')">Recevoir de la marchandise</button>
-          <button class="button" (click)="open('adjustment')">Corriger le stock</button>
+          @if (auth.isOwner()) {
+            <button class="button" (click)="open('adjustment')">Corriger le stock</button>
+          }
         </div>
       </div>
 
@@ -52,14 +55,16 @@ type Panel = 'none' | 'reception' | 'adjustment';
             <span class="muted">soit {{ text }}</span>
           }
         </div>
-        <div class="stat">
-          <span class="label">Coût moyen par {{ d.product.baseUnit }}</span>
-          <span class="value">{{ cost(d.product.avgCostMilli) }}</span>
-        </div>
-        <div class="stat">
-          <span class="label">Valeur du stock</span>
-          <span class="value">{{ stockValue() }}</span>
-        </div>
+        @if (auth.isOwner()) {
+          <div class="stat">
+            <span class="label">Coût moyen par {{ d.product.baseUnit }}</span>
+            <span class="value">{{ cost(d.product.avgCostMilli) }}</span>
+          </div>
+          <div class="stat">
+            <span class="label">Valeur du stock</span>
+            <span class="value">{{ stockValue() }}</span>
+          </div>
+        }
         <div class="stat">
           <span class="label">Seuil d'alerte</span>
           <span class="value">{{ qty(d.product.alertThreshold) }}</span>
@@ -199,6 +204,7 @@ type Panel = 'none' | 'reception' | 'adjustment';
 })
 export class ProductDetailPage {
   private readonly api = inject(Api);
+  protected readonly auth = inject(AuthState);
   private readonly productId = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
 
   protected readonly detail = signal<ProductDetail | null>(null);

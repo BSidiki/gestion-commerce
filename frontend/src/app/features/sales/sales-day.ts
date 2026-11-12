@@ -1,9 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
 
 import { Api, DailyReport, Sale, errorMessage } from '../../core/api';
+import { AuthState } from '../../core/auth-state';
 import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
 
 @Component({
@@ -98,7 +99,7 @@ import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
                 }
               </td>
               <td>
-                @if (sale.status === 'VALIDEE' && cancelling() !== sale.id) {
+                @if (auth.isOwner() && sale.status === 'VALIDEE' && cancelling() !== sale.id) {
                   <button type="button" class="button danger" (click)="startCancel(sale.id)">Annuler</button>
                 }
               </td>
@@ -137,6 +138,7 @@ import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
 })
 export class SalesDay {
   private readonly api = inject(Api);
+  protected readonly auth = inject(AuthState);
 
   protected readonly report = signal<DailyReport | null>(null);
   protected readonly sales = signal<Sale[]>([]);
@@ -188,7 +190,9 @@ export class SalesDay {
   }
 
   private reload(): void {
-    forkJoin({ report: this.api.dailyReport(), sales: this.api.sales() }).subscribe({
+    // Le résumé chiffré (marge, résultat) est réservé au propriétaire.
+    const report = this.auth.isOwner() ? this.api.dailyReport() : of(null);
+    forkJoin({ report, sales: this.api.sales() }).subscribe({
       next: ({ report, sales }) => {
         this.report.set(report);
         this.sales.set(sales);

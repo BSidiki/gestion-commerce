@@ -12,6 +12,7 @@ import {
   Sale,
   errorMessage,
 } from '../../core/api';
+import { AuthState } from '../../core/auth-state';
 import { PAYMENT_LABELS, dateTime, fcfa, newIdempotencyKey, quantity } from '../../core/format';
 
 interface CartLine {
@@ -282,6 +283,7 @@ function floorPrice(packaging: Packaging): number | null {
 })
 export class Pos {
   private readonly api = inject(Api);
+  private readonly auth = inject(AuthState);
   private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
 
   protected readonly catalog = signal<ProductDetail[]>([]);
@@ -495,7 +497,8 @@ export class Pos {
         return `Indiquez un prix en francs entiers pour « ${line.product.name} ».`;
       }
       const floor = floorPrice(line.packaging);
-      if (floor != null && line.unitPrice < floor) {
+      // Seul le propriétaire peut vendre sous le prix plancher ; l'opération est inscrite au journal.
+      if (floor != null && line.unitPrice < floor && !this.auth.isOwner()) {
         return `Le prix de « ${line.product.name} » est sous le prix plancher de ${fcfa(floor)}.`;
       }
     }

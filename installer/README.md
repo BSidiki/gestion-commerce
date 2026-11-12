@@ -74,6 +74,22 @@ données. Le schéma de la base est mis à niveau au premier démarrage.
 
 Faites une sauvegarde sur clé USB avant chaque mise à jour.
 
+## Mot de passe du propriétaire perdu
+
+Un propriétaire peut redonner un mot de passe à n'importe quel compte depuis la page Utilisateurs.
+S'il n'existe plus aucun propriétaire capable de se connecter, il faut intervenir sur le PC :
+
+1. Arrêtez le logiciel : Gestionnaire des tâches, `GestionCommerce.exe`, « Fin de tâche ».
+2. Relancez-le une fois avec le nom d'utilisateur et le nouveau mot de passe :
+
+   ```powershell
+   & "$env:LOCALAPPDATA\Programs\GestionCommerce\GestionCommerce.exe" --app.reset-password=awa:nouveau-mot-de-passe
+   ```
+
+3. Connectez-vous avec ce mot de passe, puis changez-le dans la page Mon compte.
+
+L'opération est inscrite au journal. Elle exige d'avoir la main sur le PC de la boutique.
+
 ## Limites actuelles
 
 - Le fichier n'est pas signé : Windows SmartScreen affiche « Windows a protégé votre ordinateur » au premier
