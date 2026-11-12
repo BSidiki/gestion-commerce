@@ -43,6 +43,21 @@ class CatalogStockIntegrationTest {
     JdbcClient jdbc;
 
     @Test
+    void leLanceurReconnaitLeLogicielEtLesPagesRenvoientLInterface() throws Exception {
+        mvc.perform(get("/api/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.app").value(Application.APP_NAME));
+
+        // Un lien direct vers une page de l'interface est servi par l'interface elle-même.
+        mvc.perform(get("/produits/nouveau"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .forwardedUrl("/index.html"));
+        mvc.perform(get("/cloture"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .forwardedUrl("/index.html"));
+    }
+
+    @Test
     void sqliteEstConfigurePourResisterAuxCoupures() {
         assertThat(jdbc.sql("PRAGMA journal_mode").query(String.class).single()).isEqualToIgnoringCase("wal");
         assertThat(jdbc.sql("PRAGMA synchronous").query(Integer.class).single()).isEqualTo(2); // FULL
