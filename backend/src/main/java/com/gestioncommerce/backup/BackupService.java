@@ -51,6 +51,7 @@ import com.gestioncommerce.backup.BackupDtos.Manifest;
 import com.gestioncommerce.backup.BackupDtos.RestoreResult;
 import com.gestioncommerce.common.BusinessException;
 import com.gestioncommerce.common.Timestamps;
+import com.gestioncommerce.license.LicenseService;
 
 /**
  * Sauvegarde et restauration de la base.
@@ -89,15 +90,17 @@ public class BackupService {
     private final JdbcTemplate jdbcTemplate;
     private final Flyway flyway;
     private final ObjectMapper json;
+    private final LicenseService licenses;
     private final Path dataDir;
     private final Path localDir;
 
     public BackupService(JdbcClient jdbc, JdbcTemplate jdbcTemplate, Flyway flyway, ObjectMapper json,
-            @Value("${app.data-dir}") String dataDir) {
+            LicenseService licenses, @Value("${app.data-dir}") String dataDir) {
         this.jdbc = jdbc;
         this.jdbcTemplate = jdbcTemplate;
         this.flyway = flyway;
         this.json = json;
+        this.licenses = licenses;
         this.dataDir = Path.of(dataDir).toAbsolutePath().normalize();
         this.localDir = this.dataDir.resolve("sauvegardes");
     }
@@ -198,6 +201,7 @@ public class BackupService {
             work = Files.createTempDirectory("gestion-restauration");
             Path restored = work.resolve(DB_ENTRY);
             Optional<Keys> keysBefore = keys();
+            LicenseService.Memory licenseMemory = licenses.remember();
 
             Path zip = archive;
             if (BackupCrypto.isEncrypted(archive)) {
@@ -239,6 +243,9 @@ public class BackupService {
             // Les réglages viennent d'être remplacés par ceux de l'archive : la protection en place
             // sur ce PC avant la restauration est conservée.
             keysBefore.ifPresent(this::saveKeys);
+            // La licence suit les données restaurées ; la date la plus tardive vue et les licences
+            // déjà enregistrées sur ce PC, elles, ne s'oublient pas.
+            licenses.keep(licenseMemory);
 
             // L'historique vient d'être remplacé par celui de l'archive : on y remet ces deux lignes.
             record(BEFORE_RESTORE, Path.of(safety.path()), "REUSSIE", null);

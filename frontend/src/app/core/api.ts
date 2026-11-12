@@ -260,6 +260,19 @@ export interface RestoreResult {
   safetyCopyPath: string;
 }
 
+export interface LicenseStatus {
+  /** DESACTIVEE : version sans licences (développement). */
+  state: 'DESACTIVEE' | 'ESSAI' | 'ACTIVE' | 'ESSAI_TERMINE' | 'EXPIREE';
+  /** Vrai si le logiciel n'enregistre plus rien. */
+  readOnly: boolean;
+  /** Code à communiquer à l'éditeur pour obtenir une licence. */
+  installId: string;
+  shop: string | null;
+  expiresOn: string | null;
+  daysLeft: number | null;
+  warning: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class Api {
   private readonly http = inject(HttpClient);
@@ -361,6 +374,14 @@ export class Api {
 
   addExpense(request: ExpenseRequest): Observable<Expense> {
     return this.http.post<Expense>('/api/expenses', request);
+  }
+
+  licenseStatus(): Observable<LicenseStatus> {
+    return this.http.get<LicenseStatus>('/api/license');
+  }
+
+  activateLicense(license: string): Observable<LicenseStatus> {
+    return this.http.post<LicenseStatus>('/api/license', { license });
   }
 
   backups(): Observable<BackupOverview> {

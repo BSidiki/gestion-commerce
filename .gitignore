@@ -10,3 +10,6 @@ node_modules/
 dist/
 .angular/
 installer/build/
+# Clé privée des licences et licences émises : jamais dans le dépôt
+cle-privee*
+licence-*-emise-*.txt

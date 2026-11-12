@@ -13,13 +13,14 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
 | Réceptions, ajustements motivés, journal des mouvements | Modification d'un produit |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
-| Coût moyen pondéré, alertes de seuil | Licence hors ligne |
+| Coût moyen pondéré, alertes de seuil | Comptes utilisateurs et rôles |
 | Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 | Écran de caisse (recherche par nom ou code-barres, panier, encaissement, crédit, reçu) et ventes du jour | |
 | Clients et remboursements, dépenses, ouverture et clôture de caisse avec écart | |
 | Sauvegarde vérifiée (clé USB ou dossier), sauvegarde automatique à la clôture, restauration | |
 | Sauvegardes chiffrées par mot de passe, avec clé de secours | |
 | Installateur Windows : un seul programme avec son propre Java, lancé par un raccourci | |
+| Licence hors ligne : essai de 15 jours, licence signée de 3 mois à partir de son enregistrement, lecture seule à l'échéance | |
 
 ## Prérequis
 
@@ -60,6 +61,14 @@ cd ../backend && mvn package
 java -jar target/gestion-commerce-backend-0.1.0-SNAPSHOT.jar     # http://127.0.0.1:8080
 ```
 
+### Licences
+
+Le logiciel fonctionne 15 jours en essai, puis demande une licence signée, valable 3 mois par défaut à partir
+du jour où elle est enregistrée. À l'échéance, il passe en lecture seule : la consultation et la sauvegarde
+restent possibles.
+La création de la clé de signature et l'émission des licences sont décrites dans [tools/README.md](tools/README.md).
+Sans clé publique embarquée (poste de développement), aucune licence n'est demandée.
+
 ### Installateur Windows
 
 `installer\build.ps1` construit l'installateur à remettre au commerçant. Voir [installer/README.md](installer/README.md).
@@ -99,6 +108,8 @@ java -jar target/gestion-commerce-backend-0.1.0-SNAPSHOT.jar     # http://127.0.
 | POST | `/api/cash/open` | Ouvrir la caisse avec un fond de caisse |
 | POST | `/api/cash/close` | Clôturer la caisse avec le montant compté ; calcule l'écart |
 | GET | `/api/cash/sessions` | Les 30 dernières sessions de caisse |
+| GET | `/api/license` | État de la licence et code d'installation |
+| POST | `/api/license` | Enregistrer une licence |
 | GET | `/api/backups` | État des sauvegardes, emplacements proposés, historique |
 | POST | `/api/backups` | Créer une sauvegarde dans un dossier (dossier local par défaut) |
 | GET | `/api/backups/files` | Archives présentes dans un dossier (`?directory=`) |
@@ -174,10 +185,12 @@ backend/src/main/java/com/gestioncommerce/
 ├── customers/            clients, compte client, remboursements
 ├── sales/                ventes, paiements, annulation, rapport du jour
 ├── cash/                 dépenses, ouverture et clôture de caisse
-└── backup/               sauvegarde, restauration, historique
+├── backup/               sauvegarde, restauration, historique
+└── license/              essai, vérification des licences, lecture seule
 backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
 
 installer/                script de construction, script Inno Setup, notice
+tools/                    outil de l'éditeur pour créer la clé et émettre les licences
 
 frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
