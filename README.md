@@ -19,7 +19,7 @@ Phase 1 (catalogue et stock) : backend et interface.
 
 - JDK 21
 - Maven 3.9 ou plus récent
-- Node.js 22 ou plus récent (interface)
+- Node.js 22.22.3 ou plus récent, ou 24.15 ou plus récent (interface, exigé par Angular 22)
 
 ## Lancer
 
