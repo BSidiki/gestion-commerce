@@ -21,7 +21,7 @@ type Panel = 'none' | 'reception' | 'adjustment';
   selector: 'app-product-detail',
   imports: [FormsModule, RouterLink],
   template: `
-    <p><a routerLink="/">← Tous les produits</a></p>
+    <p><a routerLink="/produits">← Tous les produits</a></p>
 
     @if (error(); as message) {
       <p class="alert error" role="alert">{{ message }}</p>

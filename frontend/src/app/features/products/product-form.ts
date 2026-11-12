@@ -30,7 +30,7 @@ function emptyPrices(): PriceDraft[] {
   template: `
     <div class="page-head">
       <h1>Nouveau produit</h1>
-      <a class="button" routerLink="/">Annuler</a>
+      <a class="button" routerLink="/produits">Annuler</a>
     </div>
 
     <form (ngSubmit)="save()" class="form">

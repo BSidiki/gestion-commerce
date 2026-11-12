@@ -1,8 +1,11 @@
 package com.gestioncommerce.catalog;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -124,6 +127,50 @@ public class CatalogService {
                 })
                 .list();
         return new ProductDetail(summary, packagings);
+    }
+
+    private record PriceRow(String packagingId, PriceView price) {
+    }
+
+    private record PackagingRow(String productId, PackagingView packaging) {
+    }
+
+    /**
+     * Tout le catalogue vendable en une fois, pour l'écran de caisse : la recherche
+     * par nom ou code-barres se fait ensuite dans l'interface, sans aller-retour.
+     */
+    @Transactional
+    public List<ProductDetail> listSellable() {
+        Map<String, List<String>> barcodes = new HashMap<>();
+        jdbc.sql("SELECT packaging_id, code FROM product_barcode ORDER BY code")
+                .query((rs, i) -> Map.entry(rs.getString("packaging_id"), rs.getString("code")))
+                .list()
+                .forEach(e -> barcodes.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(e.getValue()));
+
+        Map<String, List<PriceView>> prices = new HashMap<>();
+        jdbc.sql("SELECT packaging_id, level, price, floor_price FROM product_price ORDER BY price DESC")
+                .query((rs, i) -> new PriceRow(rs.getString("packaging_id"),
+                        new PriceView(PriceLevel.valueOf(rs.getString("level")),
+                                rs.getLong("price"), rs.getLong("floor_price"))))
+                .list()
+                .forEach(row -> prices.computeIfAbsent(row.packagingId(), k -> new ArrayList<>()).add(row.price()));
+
+        Map<String, List<PackagingView>> packagings = new HashMap<>();
+        jdbc.sql("SELECT id, product_id, name, factor FROM product_packaging ORDER BY factor")
+                .query((rs, i) -> {
+                    String packagingId = rs.getString("id");
+                    return new PackagingRow(rs.getString("product_id"),
+                            new PackagingView(packagingId, rs.getString("name"), rs.getLong("factor"),
+                                    barcodes.getOrDefault(packagingId, List.of()),
+                                    prices.getOrDefault(packagingId, List.of())));
+                })
+                .list()
+                .forEach(row -> packagings.computeIfAbsent(row.productId(), k -> new ArrayList<>())
+                        .add(row.packaging()));
+
+        return listProducts(false).stream()
+                .map(product -> new ProductDetail(product, packagings.getOrDefault(product.id(), List.of())))
+                .toList();
     }
 
     // ---------- Règles de validation ----------

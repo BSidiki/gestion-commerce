@@ -88,6 +88,72 @@ export interface AdjustmentRequest {
   note?: string;
 }
 
+export type PaymentMethod = 'ESPECES' | 'MOBILE_MONEY';
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string | null;
+  /** Solde dû par le client, en francs CFA. */
+  balance: number;
+}
+
+export interface SaleItemRequest {
+  packagingId: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface PaymentLine {
+  method: PaymentMethod;
+  amount: number;
+}
+
+export interface SaleRequest {
+  idempotencyKey: string;
+  customerId: string | null;
+  items: SaleItemRequest[];
+  payments: PaymentLine[];
+}
+
+export interface SaleItem {
+  productId: string;
+  productName: string;
+  packagingName: string;
+  factor: number;
+  quantity: number;
+  unitPrice: number;
+  listPrice: number | null;
+  lineTotal: number;
+}
+
+export interface Sale {
+  id: string;
+  number: number;
+  customerId: string | null;
+  total: number;
+  paid: number;
+  credit: number;
+  status: 'VALIDEE' | 'ANNULEE';
+  businessDate: string;
+  createdAt: string;
+  cancelReason: string | null;
+  items: SaleItem[];
+  payments: PaymentLine[];
+}
+
+export interface DailyReport {
+  date: string;
+  saleCount: number;
+  revenue: number;
+  costOfGoods: number;
+  grossMargin: number;
+  cash: number;
+  mobileMoney: number;
+  creditGranted: number;
+  repaymentsReceived: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class Api {
   private readonly http = inject(HttpClient);
@@ -122,6 +188,36 @@ export class Api {
 
   adjust(request: AdjustmentRequest): Observable<StockLevel> {
     return this.http.post<StockLevel>('/api/stock/adjustments', request);
+  }
+
+  /** Catalogue complet pour la caisse : produits, conditionnements, prix, codes-barres. */
+  sellable(): Observable<ProductDetail[]> {
+    return this.http.get<ProductDetail[]>('/api/catalog/sellable');
+  }
+
+  customers(): Observable<Customer[]> {
+    return this.http.get<Customer[]>('/api/customers');
+  }
+
+  createCustomer(name: string, phone: string): Observable<Customer> {
+    return this.http.post<Customer>('/api/customers', { name, phone });
+  }
+
+  createSale(request: SaleRequest): Observable<Sale> {
+    return this.http.post<Sale>('/api/sales', request);
+  }
+
+  /** Ventes du jour, la plus récente en premier. */
+  sales(): Observable<Sale[]> {
+    return this.http.get<Sale[]>('/api/sales');
+  }
+
+  cancelSale(saleId: string, reason: string): Observable<Sale> {
+    return this.http.post<Sale>(`/api/sales/${saleId}/cancel`, { reason });
+  }
+
+  dailyReport(): Observable<DailyReport> {
+    return this.http.get<DailyReport>('/api/reports/daily');
   }
 }
 

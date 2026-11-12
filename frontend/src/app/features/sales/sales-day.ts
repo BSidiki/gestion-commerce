@@ -1,0 +1,198 @@
+import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
+
+import { Api, DailyReport, Sale, errorMessage } from '../../core/api';
+import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
+
+@Component({
+  selector: 'app-sales-day',
+  imports: [FormsModule, RouterLink],
+  template: `
+    <div class="page-head">
+      <h1>Ventes du jour</h1>
+      <a class="button primary" routerLink="/">Nouvelle vente</a>
+    </div>
+
+    @if (error(); as message) {
+      <p class="alert error" role="alert">{{ message }}</p>
+    }
+    @if (notice(); as message) {
+      <p class="alert success" role="status">{{ message }}</p>
+    }
+
+    @if (report(); as r) {
+      <div class="stats">
+        <div class="stat">
+          <span class="label">Chiffre d'affaires</span>
+          <span class="value">{{ money(r.revenue) }}</span>
+          <span class="muted">{{ r.saleCount }} vente(s)</span>
+        </div>
+        <div class="stat">
+          <span class="label">Marge brute</span>
+          <span class="value">{{ money(r.grossMargin) }}</span>
+          <span class="muted">coût des marchandises : {{ money(r.costOfGoods) }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Encaissé en espèces</span>
+          <span class="value">{{ money(r.cash) }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Encaissé en Mobile Money</span>
+          <span class="value">{{ money(r.mobileMoney) }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Crédits accordés</span>
+          <span class="value">{{ money(r.creditGranted) }}</span>
+          <span class="muted">remboursements reçus : {{ money(r.repaymentsReceived) }}</span>
+        </div>
+      </div>
+    }
+
+    @if (loading()) {
+      <p class="muted">Chargement…</p>
+    } @else {
+      <table class="table">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Heure</th>
+            <th>Articles</th>
+            <th class="num">Total</th>
+            <th>Paiement</th>
+            <th>État</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (sale of sales(); track sale.id) {
+            <tr [class.cancelled]="sale.status === 'ANNULEE'">
+              <td>{{ sale.number }}</td>
+              <td>{{ date(sale.createdAt) }}</td>
+              <td>
+                @for (item of sale.items; track $index) {
+                  <div>{{ qty(item.quantity) }} × {{ item.productName }} ({{ item.packagingName }})</div>
+                }
+              </td>
+              <td class="num">{{ money(sale.total) }}</td>
+              <td>
+                @for (p of sale.payments; track $index) {
+                  <div>{{ paymentLabel(p.method) }} : {{ money(p.amount) }}</div>
+                }
+                @if (sale.credit > 0) {
+                  <div>Crédit : {{ money(sale.credit) }}</div>
+                }
+              </td>
+              <td>
+                @if (sale.status === 'ANNULEE') {
+                  <span class="badge warning">Annulée</span>
+                  <div class="muted small">{{ sale.cancelReason }}</div>
+                } @else {
+                  Validée
+                }
+              </td>
+              <td>
+                @if (sale.status === 'VALIDEE' && cancelling() !== sale.id) {
+                  <button type="button" class="button danger" (click)="startCancel(sale.id)">Annuler</button>
+                }
+              </td>
+            </tr>
+            @if (cancelling() === sale.id) {
+              <tr>
+                <td colspan="7">
+                  <div class="inline">
+                    <input
+                      [(ngModel)]="cancelReason"
+                      placeholder="Motif de l'annulation (obligatoire)"
+                      aria-label="Motif de l'annulation"
+                    />
+                    <button
+                      type="button"
+                      class="button danger"
+                      (click)="confirmCancel(sale)"
+                      [disabled]="!cancelReason.trim() || saving()"
+                    >
+                      Confirmer l'annulation de la vente n° {{ sale.number }}
+                    </button>
+                    <button type="button" class="button" (click)="cancelling.set(null)">Garder la vente</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          } @empty {
+            <tr>
+              <td colspan="7" class="muted">Aucune vente aujourd'hui.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  `,
+})
+export class SalesDay {
+  private readonly api = inject(Api);
+
+  protected readonly report = signal<DailyReport | null>(null);
+  protected readonly sales = signal<Sale[]>([]);
+  protected readonly loading = signal(true);
+  protected readonly error = signal<string | null>(null);
+  protected readonly notice = signal<string | null>(null);
+  protected readonly cancelling = signal<string | null>(null);
+  protected readonly saving = signal(false);
+
+  protected cancelReason = '';
+
+  protected readonly money = fcfa;
+  protected readonly qty = quantity;
+  protected readonly date = dateTime;
+
+  constructor() {
+    this.reload();
+  }
+
+  protected paymentLabel(method: string): string {
+    return PAYMENT_LABELS[method] ?? method;
+  }
+
+  protected startCancel(saleId: string): void {
+    this.cancelReason = '';
+    this.notice.set(null);
+    this.error.set(null);
+    this.cancelling.set(saleId);
+  }
+
+  protected confirmCancel(sale: Sale): void {
+    const reason = this.cancelReason.trim();
+    if (!reason) {
+      return;
+    }
+    this.saving.set(true);
+    this.api.cancelSale(sale.id, reason).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.cancelling.set(null);
+        this.notice.set(`Vente n° ${sale.number} annulée : le stock a été remis.`);
+        this.reload();
+      },
+      error: e => {
+        this.saving.set(false);
+        this.error.set(errorMessage(e));
+      },
+    });
+  }
+
+  private reload(): void {
+    forkJoin({ report: this.api.dailyReport(), sales: this.api.sales() }).subscribe({
+      next: ({ report, sales }) => {
+        this.report.set(report);
+        this.sales.set(sales);
+        this.loading.set(false);
+      },
+      error: e => {
+        this.error.set(errorMessage(e));
+        this.loading.set(false);
+      },
+    });
+  }
+}

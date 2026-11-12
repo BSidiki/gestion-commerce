@@ -332,3 +332,188 @@ select:focus-visible,
 .form > button.button {
   align-self: flex-start;
 }
+
+/* ---------- Caisse ---------- */
+
+.pos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .pos {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pos h1 {
+  margin-bottom: 0.75rem;
+}
+
+.search {
+  font-size: 1.1rem;
+  min-height: 52px;
+  margin-bottom: 1rem;
+}
+
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.results li {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ticket .alert,
+.ticket .grid {
+  margin: 0;
+}
+
+.grid.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.narrow {
+  width: 5.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.ticket .table th,
+.ticket .table td {
+  padding: 0.45rem 0.4rem;
+}
+
+.ticket .table td:first-child {
+  width: 40%;
+}
+
+.ticket > .button:not(.big) {
+  align-self: flex-start;
+}
+
+.small {
+  font-size: 0.82rem;
+}
+
+.warning-text {
+  color: var(--warning-ink);
+}
+
+.grand-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.grand-total strong {
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.button.big {
+  min-height: 56px;
+  font-size: 1.1rem;
+}
+
+.button.icon {
+  min-width: 44px;
+  padding: 0;
+}
+
+.alert.warning {
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+}
+
+.credit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.credit > .button {
+  align-self: flex-start;
+}
+
+.cancelled td {
+  color: var(--muted);
+}
+
+/* ---------- Reçu ---------- */
+
+.receipt {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.receipt h1 {
+  margin-bottom: 0.25rem;
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 1rem;
+  margin: 1rem 0;
+}
+
+.totals dt {
+  color: var(--muted);
+}
+
+.totals dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals .strong {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .page {
+    padding: 0;
+  }
+
+  .receipt {
+    border: none;
+    max-width: none;
+  }
+}
+
+.ticket td .small {
+  white-space: nowrap;
+}

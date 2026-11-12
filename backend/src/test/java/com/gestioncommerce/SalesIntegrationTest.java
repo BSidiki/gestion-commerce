@@ -68,6 +68,15 @@ class SalesIntegrationTest {
                 {"productId": "%s", "packagingId": "%s", "quantity": 2, "totalCost": 10000}
                 """.formatted(productId, cartonId));
 
+        // Le catalogue de la caisse expose le produit avec ses conditionnements, ses prix et son stock.
+        mvc.perform(get("/api/catalog/sellable"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].product.stockQty").value(48))
+                .andExpect(jsonPath("$[0].packagings.length()").value(2))
+                .andExpect(jsonPath("$[0].packagings[1].name").value("Carton"))
+                .andExpect(jsonPath("$[0].packagings[1].prices[0].price").value(6500));
+
         String customerId = postJson("/api/customers", """
                 {"name": "Awa Ouédraogo", "phone": "70 00 00 00"}
                 """).at("/id").asText();

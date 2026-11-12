@@ -59,3 +59,20 @@ export function stockBreakdown(stockQty: number, baseUnit: string, packagings: P
   const head = `${quantity(whole)} ${largest.name}`;
   return rest === 0 ? head : `${head} + ${quantity(rest)} ${baseUnit}`;
 }
+
+export const PAYMENT_LABELS: Record<string, string> = {
+  ESPECES: 'Espèces',
+  MOBILE_MONEY: 'Mobile Money',
+};
+
+/**
+ * Identifiant unique d'une validation de vente. crypto.randomUUID n'existe que
+ * sur une page sécurisée (localhost ou HTTPS) : repli pour les postes du réseau local.
+ */
+export function newIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const random = () => Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0');
+  return `${Date.now().toString(16)}-${random()}-${random()}-${random()}`;
+}
