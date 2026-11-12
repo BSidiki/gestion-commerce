@@ -36,7 +36,58 @@ const OTHER = '__autre__';
       }
     }
 
-    <form class="card form" (ngSubmit)="backup()">
+    @if (recoveryKey(); as key) {
+      <section class="card recovery">
+        <h2>Clé de secours</h2>
+        <p>
+          Notez cette clé sur papier ou imprimez-la, puis rangez-la hors de la boutique. Si le mot de passe est
+          oublié, elle seule permet d'ouvrir les sauvegardes. Elle ne sera plus jamais affichée.
+        </p>
+        <p class="recovery-key">{{ key }}</p>
+        <div class="actions no-print">
+          <button type="button" class="button" (click)="print()">Imprimer</button>
+          <button type="button" class="button primary" (click)="recoveryKey.set(null)">J'ai noté la clé</button>
+        </div>
+      </section>
+    }
+
+    <form class="card form no-print" (ngSubmit)="protect()">
+      <h2>Protection par mot de passe</h2>
+      @if (encryptionEnabled()) {
+        <p class="alert success">
+          Les sauvegardes sont chiffrées. Sans le mot de passe ou la clé de secours, une clé USB perdue est
+          illisible.
+        </p>
+      } @else {
+        <p class="alert warning">
+          Les sauvegardes ne sont pas protégées : toute personne qui trouve la clé USB peut lire vos ventes et le
+          nom de vos clients.
+        </p>
+      }
+      <div class="grid">
+        <label>
+          {{ encryptionEnabled() ? 'Nouveau mot de passe' : 'Mot de passe' }} (8 caractères au moins)
+          <input name="password" type="password" autocomplete="new-password" [(ngModel)]="password" />
+        </label>
+        <label>
+          Répétez le mot de passe
+          <input name="passwordAgain" type="password" autocomplete="new-password" [(ngModel)]="passwordAgain" />
+        </label>
+      </div>
+      @if (encryptionEnabled()) {
+        <small>
+          Changer le mot de passe crée aussi une nouvelle clé de secours. Les sauvegardes déjà faites gardent
+          l'ancien mot de passe et l'ancienne clé.
+        </small>
+      }
+      <div class="actions">
+        <button type="submit" class="button" [disabled]="busy()">
+          {{ encryptionEnabled() ? 'Changer le mot de passe' : 'Protéger les sauvegardes' }}
+        </button>
+      </div>
+    </form>
+
+    <form class="card form no-print" (ngSubmit)="backup()">
       <h2>Sauvegarder maintenant</h2>
       <div class="grid">
         <label>
@@ -70,7 +121,7 @@ const OTHER = '__autre__';
       </div>
     </form>
 
-    <section class="card form">
+    <section class="card form no-print">
       <h2>Restaurer une sauvegarde</h2>
       <p class="muted">
         À utiliser après une panne, un changement de PC ou une erreur grave. Les données actuelles sont remplacées
@@ -110,12 +161,17 @@ const OTHER = '__autre__';
           <tbody>
             @for (file of found; track file.path) {
               <tr>
-                <td>{{ file.name }}</td>
+                <td>
+                  {{ file.name }}
+                  @if (file.encrypted) {
+                    <span class="badge neutral">Protégée</span>
+                  }
+                </td>
                 <td>{{ date(file.modifiedAt) }}</td>
                 <td class="num">{{ size(file.sizeBytes) }}</td>
                 <td>
                   @if (confirming() !== file.path) {
-                    <button type="button" class="button" (click)="confirming.set(file.path)" [disabled]="busy()">
+                    <button type="button" class="button" (click)="startRestore(file)" [disabled]="busy()">
                       Restaurer
                     </button>
                   }
@@ -128,6 +184,13 @@ const OTHER = '__autre__';
                       Tout ce qui a été saisi après le {{ date(file.modifiedAt) }} sera remplacé par le contenu de
                       cette sauvegarde.
                     </p>
+                    @if (file.needsSecret) {
+                      <label class="secret">
+                        Cette sauvegarde a été protégée avec un autre mot de passe. Saisissez son mot de passe ou sa
+                        clé de secours.
+                        <input name="secret" type="password" autocomplete="off" [(ngModel)]="secret" />
+                      </label>
+                    }
                     <div class="inline">
                       <button type="button" class="button danger" (click)="restore(file)" [disabled]="busy()">
                         Oui, restaurer cette sauvegarde
@@ -147,7 +210,7 @@ const OTHER = '__autre__';
       }
     </section>
 
-    <section class="card">
+    <section class="card no-print">
       <h2>Historique</h2>
       <table class="table">
         <thead>
@@ -198,7 +261,13 @@ export class BackupPage {
   protected readonly error = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
 
+  protected readonly encryptionEnabled = signal(false);
+  protected readonly recoveryKey = signal<string | null>(null);
+
   protected readonly other = OTHER;
+  protected password = '';
+  protected passwordAgain = '';
+  protected secret = '';
   protected readonly customDestination = signal('');
   protected customSource = '';
 
@@ -230,6 +299,37 @@ export class BackupPage {
     });
   }
 
+  protected protect(): void {
+    if (this.password.length < 8) {
+      this.error.set('Le mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+    if (this.password !== this.passwordAgain) {
+      this.error.set('Les deux mots de passe ne sont pas identiques.');
+      return;
+    }
+    this.start();
+    this.api.protectBackups(this.password).subscribe({
+      next: result => {
+        this.password = '';
+        this.passwordAgain = '';
+        this.recoveryKey.set(result.recoveryKey);
+        this.done('Les prochaines sauvegardes seront chiffrées. Notez la clé de secours affichée ci-dessous.');
+      },
+      error: e => this.failed(e),
+    });
+  }
+
+  protected print(): void {
+    window.print();
+  }
+
+  protected startRestore(file: BackupFile): void {
+    this.secret = '';
+    this.error.set(null);
+    this.confirming.set(file.path);
+  }
+
   protected pickSource(path: string): void {
     this.restoreSource.set(path);
     this.files.set(null);
@@ -254,9 +354,14 @@ export class BackupPage {
   }
 
   protected restore(file: BackupFile): void {
+    if (file.needsSecret && !this.secret) {
+      this.error.set('Saisissez le mot de passe ou la clé de secours de cette sauvegarde.');
+      return;
+    }
     this.start();
-    this.api.restoreBackup(file.path).subscribe({
+    this.api.restoreBackup(file.path, this.secret).subscribe({
       next: result => {
+        this.secret = '';
         this.confirming.set(null);
         this.files.set(null);
         this.done(
@@ -288,6 +393,7 @@ export class BackupPage {
   private reload(first: boolean): void {
     this.api.backups().subscribe({
       next: overview => {
+        this.encryptionEnabled.set(overview.encryptionEnabled);
         this.status.set(overview.status);
         this.destinations.set(overview.destinations);
         this.history.set(overview.history);

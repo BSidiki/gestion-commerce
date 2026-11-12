@@ -15,6 +15,8 @@ import com.gestioncommerce.backup.BackupDtos.BackupFile;
 import com.gestioncommerce.backup.BackupDtos.BackupOverview;
 import com.gestioncommerce.backup.BackupDtos.BackupRequest;
 import com.gestioncommerce.backup.BackupDtos.BackupView;
+import com.gestioncommerce.backup.BackupDtos.EncryptionRequest;
+import com.gestioncommerce.backup.BackupDtos.EncryptionResult;
 import com.gestioncommerce.backup.BackupDtos.RestoreRequest;
 import com.gestioncommerce.backup.BackupDtos.RestoreResult;
 
@@ -50,6 +52,12 @@ public class BackupController {
 
     @PostMapping("/restore")
     RestoreResult restore(@Valid @RequestBody RestoreRequest request) {
-        return backups.restore(request.path());
+        return backups.restore(request.path(), request.secret());
+    }
+
+    /** Active la protection par mot de passe, ou change le mot de passe. Renvoie la clé de secours. */
+    @PostMapping("/encryption")
+    EncryptionResult enableEncryption(@Valid @RequestBody EncryptionRequest request) {
+        return new EncryptionResult(backups.enableEncryption(request.password()));
     }
 }

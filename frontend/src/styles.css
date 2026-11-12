@@ -522,3 +522,32 @@ select:focus-visible,
   word-break: break-all;
   font-size: 0.85rem;
 }
+
+/* ---------- Protection des sauvegardes ---------- */
+
+.badge.neutral {
+  background: #e6ebf1;
+  color: var(--ink);
+}
+
+.recovery {
+  border: 2px solid var(--primary);
+}
+
+.recovery-key {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 1rem;
+  margin: 1rem 0;
+  background: var(--background);
+  border-radius: 8px;
+  word-break: break-word;
+}
+
+.secret {
+  margin: 0.75rem 0;
+  max-width: 520px;
+}

@@ -13,11 +13,12 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
 | Réceptions, ajustements motivés, journal des mouvements | Modification d'un produit |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
-| Coût moyen pondéré, alertes de seuil | Chiffrement des sauvegardes, licence, installateur (phase 3) |
+| Coût moyen pondéré, alertes de seuil | Licence hors ligne, installateur Windows (phase 3) |
 | Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 | Écran de caisse (recherche par nom ou code-barres, panier, encaissement, crédit, reçu) et ventes du jour | |
 | Clients et remboursements, dépenses, ouverture et clôture de caisse avec écart | |
 | Sauvegarde vérifiée (clé USB ou dossier), sauvegarde automatique à la clôture, restauration | |
+| Sauvegardes chiffrées par mot de passe, avec clé de secours | |
 
 ## Prérequis
 
@@ -85,7 +86,8 @@ npm start                # http://localhost:4200, les appels /api sont relayés 
 | GET | `/api/backups` | État des sauvegardes, emplacements proposés, historique |
 | POST | `/api/backups` | Créer une sauvegarde dans un dossier (dossier local par défaut) |
 | GET | `/api/backups/files` | Archives présentes dans un dossier (`?directory=`) |
-| POST | `/api/backups/restore` | Restaurer une archive, après copie de l'état actuel |
+| POST | `/api/backups/restore` | Restaurer une archive, après copie de l'état actuel (`secret` si elle est protégée par un autre mot de passe) |
+| POST | `/api/backups/encryption` | Protéger les sauvegardes par mot de passe, ou changer le mot de passe ; renvoie la clé de secours |
 
 ### Exemple
 
@@ -136,7 +138,10 @@ curl -X POST http://127.0.0.1:8080/api/stock/adjustments -H "Content-Type: appli
 - Chaque clôture de caisse déclenche une sauvegarde automatique dans `<dossier de données>/sauvegardes` ; les 7 dernières sont gardées.
 - Un rappel s'affiche si aucune sauvegarde hors du dossier de données n'a été faite depuis 3 jours.
 - La restauration vérifie l'archive (empreinte, cohérence, version), garde une copie de l'état actuel, puis remplace les données sans redémarrer le logiciel.
-- Les archives ne sont pas encore chiffrées : une clé USB perdue expose les données.
+- Une fois un mot de passe défini, les archives sont chiffrées (fichiers `.gcbak`, AES-256-GCM). Chaque archive a sa propre clé, ouverte soit par le mot de passe, soit par la clé de secours.
+- Le logiciel ne garde ni le mot de passe ni la clé de secours, seulement des clés dérivées (PBKDF2, 600 000 itérations) qui lui permettent de chiffrer sans les redemander. La clé de secours n'est affichée qu'une fois.
+- Sur le PC d'origine, la restauration ne demande rien. Sur un autre PC, ou après un changement de mot de passe, elle demande le mot de passe ou la clé de secours de l'archive.
+- Le chiffrement protège une clé USB perdue ; il ne protège pas d'un accès au PC lui-même, où la base est en clair.
 
 Motifs d'ajustement : `PERTE`, `CASSE`, `VOL`, `ERREUR_SAISIE`, `INVENTAIRE`.
 Niveaux de prix : `DETAIL`, `DEMI_GROS`, `GROS`.
