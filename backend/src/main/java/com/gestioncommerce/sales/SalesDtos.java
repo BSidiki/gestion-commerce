@@ -84,6 +84,8 @@ public final class SalesDtos {
      * @param mobileMoney        Mobile Money encaissé (ventes et remboursements de crédits)
      * @param creditGranted      part des ventes du jour laissée à crédit
      * @param repaymentsReceived remboursements de crédits reçus dans la journée
+     * @param expenses           dépenses de la journée, tous moyens de paiement confondus
+     * @param estimatedResult    grossMargin - expenses
      */
     public record DailyReport(
             String date,
@@ -94,6 +96,8 @@ public final class SalesDtos {
             long cash,
             long mobileMoney,
             long creditGranted,
-            long repaymentsReceived) {
+            long repaymentsReceived,
+            long expenses,
+            long estimatedResult) {
     }
 }

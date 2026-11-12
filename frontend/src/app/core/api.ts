@@ -152,6 +152,59 @@ export interface DailyReport {
   mobileMoney: number;
   creditGranted: number;
   repaymentsReceived: number;
+  expenses: number;
+  /** Marge brute moins les dépenses du jour. */
+  estimatedResult: number;
+}
+
+export interface LedgerEntry {
+  type: 'CREDIT' | 'REMBOURSEMENT' | 'ANNULATION';
+  /** Positif : le client doit davantage. Négatif : il doit moins. */
+  amount: number;
+  saleId: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface CustomerDetail {
+  customer: Customer;
+  ledger: LedgerEntry[];
+}
+
+export interface CashSession {
+  id: string;
+  status: 'OUVERTE' | 'CLOTUREE';
+  openingFloat: number;
+  openedAt: string;
+  closedAt: string | null;
+  cashIn: number;
+  cashExpenses: number;
+  expectedCash: number;
+  countedCash: number | null;
+  /** Compté moins attendu : négatif s'il manque de l'argent. */
+  difference: number | null;
+  note: string | null;
+}
+
+export interface CashStatus {
+  open: boolean;
+  session: CashSession | null;
+}
+
+export interface Expense {
+  id: string;
+  category: string;
+  amount: number;
+  method: PaymentMethod;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ExpenseRequest {
+  category: string;
+  amount: number;
+  method: PaymentMethod;
+  note?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -218,6 +271,43 @@ export class Api {
 
   dailyReport(): Observable<DailyReport> {
     return this.http.get<DailyReport>('/api/reports/daily');
+  }
+
+  customer(id: string): Observable<CustomerDetail> {
+    return this.http.get<CustomerDetail>(`/api/customers/${id}`);
+  }
+
+  repay(customerId: string, amount: number, method: PaymentMethod, note: string): Observable<CustomerDetail> {
+    return this.http.post<CustomerDetail>(`/api/customers/${customerId}/repayments`, {
+      amount,
+      method,
+      ...(note ? { note } : {}),
+    });
+  }
+
+  cashStatus(): Observable<CashStatus> {
+    return this.http.get<CashStatus>('/api/cash/current');
+  }
+
+  openCash(openingFloat: number): Observable<CashSession> {
+    return this.http.post<CashSession>('/api/cash/open', { openingFloat });
+  }
+
+  closeCash(countedCash: number, note: string): Observable<CashSession> {
+    return this.http.post<CashSession>('/api/cash/close', { countedCash, ...(note ? { note } : {}) });
+  }
+
+  cashSessions(): Observable<CashSession[]> {
+    return this.http.get<CashSession[]>('/api/cash/sessions');
+  }
+
+  /** Dépenses du jour, la plus récente en premier. */
+  expenses(): Observable<Expense[]> {
+    return this.http.get<Expense[]>('/api/expenses');
+  }
+
+  addExpense(request: ExpenseRequest): Observable<Expense> {
+    return this.http.post<Expense>('/api/expenses', request);
   }
 }
 

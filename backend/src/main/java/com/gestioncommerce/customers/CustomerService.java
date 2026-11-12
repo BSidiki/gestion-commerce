@@ -1,6 +1,5 @@
 package com.gestioncommerce.customers;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -9,8 +8,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.gestioncommerce.cash.CashService;
 import com.gestioncommerce.common.BusinessException;
 import com.gestioncommerce.common.NotFoundException;
+import com.gestioncommerce.common.Timestamps;
 import com.gestioncommerce.customers.CustomerDtos.CustomerDetail;
 import com.gestioncommerce.customers.CustomerDtos.CustomerRequest;
 import com.gestioncommerce.customers.CustomerDtos.CustomerView;
@@ -27,9 +28,11 @@ public class CustomerService {
             """;
 
     private final JdbcClient jdbc;
+    private final CashService cash;
 
-    public CustomerService(JdbcClient jdbc) {
+    public CustomerService(JdbcClient jdbc, CashService cash) {
         this.jdbc = jdbc;
+        this.cash = cash;
     }
 
     @Transactional
@@ -40,7 +43,7 @@ public class CustomerService {
                 .param("id", id)
                 .param("name", request.name().trim())
                 .param("phone", phone)
-                .param("createdAt", Instant.now().toString())
+                .param("createdAt", Timestamps.now())
                 .update();
         return new CustomerView(id, request.name().trim(), phone, 0);
     }
@@ -86,16 +89,18 @@ public class CustomerService {
         }
         String paymentId = UUID.randomUUID().toString();
         jdbc.sql("""
-                INSERT INTO payment (id, customer_id, method, amount, note, business_date, created_at)
-                VALUES (:id, :customerId, :method, :amount, :note, :businessDate, :createdAt)
+                INSERT INTO payment (id, customer_id, method, amount, note, cash_session_id,
+                                     business_date, created_at)
+                VALUES (:id, :customerId, :method, :amount, :note, :cashSessionId, :businessDate, :createdAt)
                 """)
+                .param("cashSessionId", cash.currentSessionId().orElse(null))
                 .param("id", paymentId)
                 .param("customerId", customerId)
                 .param("method", request.method().name())
                 .param("amount", request.amount())
                 .param("note", request.note())
                 .param("businessDate", LocalDate.now().toString())
-                .param("createdAt", Instant.now().toString())
+                .param("createdAt", Timestamps.now())
                 .update();
         addLedgerEntry(customerId, "REMBOURSEMENT", -request.amount(), null, paymentId, request.note());
         return get(customerId);
@@ -124,7 +129,7 @@ public class CustomerService {
                 .param("saleId", saleId)
                 .param("paymentId", paymentId)
                 .param("note", note)
-                .param("createdAt", Instant.now().toString())
+                .param("createdAt", Timestamps.now())
                 .update();
     }
 }

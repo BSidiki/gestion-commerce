@@ -60,6 +60,12 @@ export function stockBreakdown(stockQty: number, baseUnit: string, packagings: P
   return rest === 0 ? head : `${head} + ${quantity(rest)} ${baseUnit}`;
 }
 
+export const LEDGER_LABELS: Record<string, string> = {
+  CREDIT: 'Vente à crédit',
+  REMBOURSEMENT: 'Remboursement',
+  ANNULATION: 'Annulation de vente',
+};
+
 export const PAYMENT_LABELS: Record<string, string> = {
   ESPECES: 'Espèces',
   MOBILE_MONEY: 'Mobile Money',

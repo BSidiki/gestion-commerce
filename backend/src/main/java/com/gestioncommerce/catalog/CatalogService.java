@@ -1,6 +1,5 @@
 package com.gestioncommerce.catalog;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +23,7 @@ import com.gestioncommerce.catalog.CatalogDtos.ProductRequest;
 import com.gestioncommerce.catalog.CatalogDtos.ProductSummary;
 import com.gestioncommerce.common.BusinessException;
 import com.gestioncommerce.common.NotFoundException;
+import com.gestioncommerce.common.Timestamps;
 
 @Service
 public class CatalogService {
@@ -259,6 +259,6 @@ public class CatalogService {
     }
 
     private static String now() {
-        return Instant.now().toString();
+        return Timestamps.now();
     }
 }

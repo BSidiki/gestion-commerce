@@ -2,7 +2,6 @@ package com.gestioncommerce.sales;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,9 +12,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.gestioncommerce.cash.CashService;
 import com.gestioncommerce.common.BusinessException;
 import com.gestioncommerce.common.NotFoundException;
 import com.gestioncommerce.common.PaymentMethod;
+import com.gestioncommerce.common.Timestamps;
 import com.gestioncommerce.customers.CustomerService;
 import com.gestioncommerce.inventory.StockService;
 import com.gestioncommerce.sales.SalesDtos.DailyReport;
@@ -36,11 +37,13 @@ public class SalesService {
     private final JdbcClient jdbc;
     private final StockService stock;
     private final CustomerService customers;
+    private final CashService cash;
 
-    public SalesService(JdbcClient jdbc, StockService stock, CustomerService customers) {
+    public SalesService(JdbcClient jdbc, StockService stock, CustomerService customers, CashService cash) {
         this.jdbc = jdbc;
         this.stock = stock;
         this.customers = customers;
+        this.cash = cash;
     }
 
     /** Ligne de vente résolue : la demande, complétée par ce que le catalogue en dit à cet instant. */
@@ -107,7 +110,7 @@ public class SalesService {
 
         String saleId = UUID.randomUUID().toString();
         long number = jdbc.sql("SELECT COALESCE(MAX(number), 0) + 1 FROM sale").query(Long.class).single();
-        String now = Instant.now().toString();
+        String now = Timestamps.now();
         String businessDate = LocalDate.now().toString();
 
         jdbc.sql("""
@@ -150,11 +153,15 @@ public class SalesService {
             stock.removeForSale(line.productId(), Math.multiplyExact(line.quantity(), line.factor()), label);
         }
 
+        String cashSessionId = cash.currentSessionId().orElse(null);
         for (PaymentRequest payment : payments) {
             jdbc.sql("""
-                    INSERT INTO payment (id, sale_id, customer_id, method, amount, business_date, created_at)
-                    VALUES (:id, :saleId, :customerId, :method, :amount, :businessDate, :createdAt)
+                    INSERT INTO payment (id, sale_id, customer_id, method, amount, cash_session_id,
+                                         business_date, created_at)
+                    VALUES (:id, :saleId, :customerId, :method, :amount, :cashSessionId,
+                            :businessDate, :createdAt)
                     """)
+                    .param("cashSessionId", cashSessionId)
                     .param("id", UUID.randomUUID().toString())
                     .param("saleId", saleId)
                     .param("customerId", request.customerId())
@@ -179,7 +186,7 @@ public class SalesService {
             throw new BusinessException("Cette vente est déjà annulée.");
         }
         jdbc.sql("UPDATE sale SET status = 'ANNULEE', cancelled_at = ?, cancel_reason = ? WHERE id = ?")
-                .params(Instant.now().toString(), reason.trim(), saleId)
+                .params(Timestamps.now(), reason.trim(), saleId)
                 .update();
 
         String label = "Annulation de la vente n° " + sale.number();
@@ -266,12 +273,18 @@ public class SalesService {
                 LEFT JOIN sale s ON s.id = pay.sale_id
                 WHERE pay.business_date = ? AND (pay.sale_id IS NULL OR s.status = 'VALIDEE')
                 """;
-        long cash = sumPayments(paymentFilter + " AND pay.method = 'ESPECES'", day);
+        long cashReceived = sumPayments(paymentFilter + " AND pay.method = 'ESPECES'", day);
         long mobileMoney = sumPayments(paymentFilter + " AND pay.method = 'MOBILE_MONEY'", day);
         long repayments = sumPayments(paymentFilter + " AND pay.sale_id IS NULL", day);
 
-        return new DailyReport(day, sales[0], sales[1], costOfGoods, sales[1] - costOfGoods,
-                cash, mobileMoney, sales[2], repayments);
+        long expenses = jdbc.sql("SELECT COALESCE(SUM(amount), 0) FROM expense WHERE business_date = ?")
+                .param(day)
+                .query(Long.class)
+                .single();
+        long grossMargin = sales[1] - costOfGoods;
+
+        return new DailyReport(day, sales[0], sales[1], costOfGoods, grossMargin,
+                cashReceived, mobileMoney, sales[2], repayments, expenses, grossMargin - expenses);
     }
 
     private long sumPayments(String fromAndWhere, String day) {

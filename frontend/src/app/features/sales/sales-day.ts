@@ -47,6 +47,11 @@ import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
           <span class="value">{{ money(r.creditGranted) }}</span>
           <span class="muted">remboursements reçus : {{ money(r.repaymentsReceived) }}</span>
         </div>
+        <div class="stat">
+          <span class="label">Résultat estimé</span>
+          <span class="value" [class.negative]="r.estimatedResult < 0">{{ money(r.estimatedResult) }}</span>
+          <span class="muted">après {{ money(r.expenses) }} de dépenses</span>
+        </div>
       </div>
     }
 
