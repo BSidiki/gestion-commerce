@@ -34,7 +34,7 @@ import { quoteStatus, todayIso } from './quote-list';
       <div class="actions receipt-actions no-print">
         <button type="button" class="button" (click)="print()">Imprimer le devis</button>
         @if (q.status === 'OUVERT') {
-          <a class="button primary" routerLink="/" [queryParams]="{ devis: q.id }">Transformer en vente</a>
+          <a class="button primary" routerLink="/caisse" [queryParams]="{ devis: q.id }">Transformer en vente</a>
           <button type="button" class="button danger" (click)="cancel(q)" [disabled]="busy()">Annuler le devis</button>
         }
       </div>

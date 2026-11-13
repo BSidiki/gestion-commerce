@@ -23,7 +23,7 @@ import { ReceiptView } from './receipt-view';
     } @else {
       <div class="page-head">
         <h1>Ventes du jour</h1>
-        <a class="button primary" routerLink="/">Nouvelle vente</a>
+        <a class="button primary" routerLink="/caisse">Nouvelle vente</a>
       </div>
 
       @if (error(); as message) {

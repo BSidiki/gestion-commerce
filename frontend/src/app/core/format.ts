@@ -88,6 +88,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   PRODUIT_REACTIVE: 'Produit réactivé',
   CATALOGUE_IMPORTE: 'Catalogue importé',
   BOUTIQUE_MODIFIEE: 'Boutique modifiée',
+  ACCUEIL_MODIFIE: "Page d'accueil modifiée",
   ROLE_CHANGE: 'Rôle changé',
   ACHAT_ENREGISTRE: 'Achat enregistré',
   ACHAT_ANNULE: 'Achat annulé',

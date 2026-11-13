@@ -114,9 +114,36 @@ class ShopIntegrationTest {
                 .andExpect(jsonPath("$.phone").doesNotExist());
         mvc.perform(get("/api/shop")).andExpect(status().isUnauthorized());
 
+        // --- Page d'accueil : message, photo et raccourcis choisis par le propriétaire ---
+        mvc.perform(get("/api/home").cookie(seller))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.welcomeMessage").value(""))
+                .andExpect(jsonPath("$.cover").value(""))
+                .andExpect(jsonPath("$.shortcuts[0]").value("vente"))
+                .andExpect(jsonPath("$.shortcuts.length()").value(6));
+        Map<String, Object> home = Map.of("welcomeMessage", "  Bonne journée à toute l'équipe  ", "cover", logo,
+                "shortcuts", java.util.List.of("cloture", "vente", "cloture"));
+        send(put("/api/home"), seller, home).andExpect(status().isForbidden());
+        send(put("/api/home"), owner, home)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.welcomeMessage").value("Bonne journée à toute l'équipe"))
+                .andExpect(jsonPath("$.cover").value(logo))
+                .andExpect(jsonPath("$.shortcuts.length()").value(2))
+                .andExpect(jsonPath("$.shortcuts[0]").value("cloture"));
+        send(put("/api/home"), owner, Map.of("shortcuts", java.util.List.of("vente", "pirater")))
+                .andExpect(status().isUnprocessableEntity());
+        send(put("/api/home"), owner, Map.of("welcomeMessage", "x".repeat(141)))
+                .andExpect(status().isUnprocessableEntity());
+        // Aucun raccourci est un choix permis : la liste vide est gardée telle quelle.
+        send(put("/api/home"), owner, Map.of("shortcuts", java.util.List.of()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shortcuts.length()").value(0))
+                .andExpect(jsonPath("$.cover").value(""));
+
         // --- Le changement est inscrit au journal ---
         mvc.perform(get("/api/audit").cookie(owner))
-                .andExpect(jsonPath("$[0].action").value("BOUTIQUE_MODIFIEE"));
+                .andExpect(jsonPath("$[?(@.action == 'BOUTIQUE_MODIFIEE')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.action == 'ACCUEIL_MODIFIE')]").isNotEmpty());
     }
 
     private ResultActions send(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,

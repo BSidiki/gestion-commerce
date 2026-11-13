@@ -35,6 +35,7 @@ public class SystemController {
             "/catalogue/importer",
             "/boutique",
             "/tableau-de-bord",
+            "/caisse",
             "/devis",
             "/devis/{id}",
             "/inventaire",

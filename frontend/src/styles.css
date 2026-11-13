@@ -205,7 +205,7 @@ h2 {
   color: rgba(255, 255, 255, 0.62);
 }
 
-.sidebar .group:first-child {
+.sidebar nav > .group:first-child {
   margin-top: 0;
 }
 
@@ -248,10 +248,11 @@ h2 {
   outline-offset: 1px;
 }
 
-.sidebar .icon {
+/* Taille d'une icône par défaut ; un écran peut la changer par la variable --icon-size. */
+.icon {
   flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--icon-size, 1.25rem);
+  height: var(--icon-size, 1.25rem);
 }
 
 .sidebar .who {

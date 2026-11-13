@@ -37,10 +37,12 @@ import { LicenseState } from './core/license-state';
           </a>
 
           <nav aria-label="Menu principal" (click)="menuOpen.set(false)">
-            <p class="group">Vendre</p>
             <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-              <app-icon name="caisse" /> Caisse
+              <app-icon name="accueil" /> Accueil
             </a>
+
+            <p class="group">Vendre</p>
+            <a routerLink="/caisse" routerLinkActive="active"><app-icon name="caisse" /> Caisse</a>
             <a routerLink="/ventes" routerLinkActive="active"><app-icon name="ventes" /> Ventes du jour</a>
             <a routerLink="/devis" routerLinkActive="active"><app-icon name="devis" /> Devis</a>
             <a routerLink="/clients" routerLinkActive="active"><app-icon name="clients" /> Clients</a>

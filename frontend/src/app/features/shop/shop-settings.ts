@@ -5,6 +5,7 @@ import { Api, Sale, ShopSettings, errorMessage } from '../../core/api';
 import { ACCENTS, Appearance } from '../../core/appearance';
 import { ShopState } from '../../core/shop-state';
 import { ReceiptView } from '../sales/receipt-view';
+import { HomeSettingsForm } from './home-settings';
 
 /** Une vente d'exemple, pour voir le reçu sans rien encaisser. */
 const SAMPLE: Sale = {
@@ -69,7 +70,7 @@ function shrinkImage(file: File): Promise<string> {
 /** Coordonnées, apparence de l'application et format du reçu. Réservé au propriétaire. */
 @Component({
   selector: 'app-shop-settings',
-  imports: [FormsModule, ReceiptView],
+  imports: [FormsModule, ReceiptView, HomeSettingsForm],
   styles: `
     .layout {
       display: grid;
@@ -203,6 +204,8 @@ function shrinkImage(file: File): Promise<string> {
           <app-receipt [sale]="sample" customerName="Client d'exemple" [preview]="draft()" />
         </div>
       </div>
+
+      <app-home-settings />
     }
   `,
 })
