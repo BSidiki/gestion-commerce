@@ -43,6 +43,39 @@ export interface ProductDetail {
   packagings: Packaging[];
 }
 
+/** Une ligne du tableau d'import. Seul le nom est obligatoire ; montants en francs CFA entiers. */
+export interface ImportRow {
+  name: string | null;
+  category?: string | null;
+  baseUnit?: string | null;
+  retailPrice?: number | null;
+  retailFloor?: number | null;
+  barcode?: string | null;
+  alertThreshold?: number | null;
+  initialStock?: number | null;
+  unitCost?: number | null;
+  packagingName?: string | null;
+  packagingFactor?: number | null;
+  packagingPrice?: number | null;
+  packagingFloor?: number | null;
+}
+
+export interface ImportRowResult {
+  /** Rang de la ligne dans la demande, à partir de 1. */
+  line: number;
+  name: string;
+  status: 'CREE' | 'EXISTE' | 'ERREUR';
+  message: string;
+}
+
+export interface ImportResult {
+  dryRun: boolean;
+  created: number;
+  skipped: number;
+  errors: number;
+  rows: ImportRowResult[];
+}
+
 export interface Movement {
   id: string;
   type: 'RECEPTION' | 'VENTE' | 'AJUSTEMENT' | 'ANNULATION';
@@ -344,6 +377,11 @@ export class Api {
 
   createProduct(request: ProductRequest): Observable<ProductDetail> {
     return this.http.post<ProductDetail>('/api/products', request);
+  }
+
+  /** Importe un tableau de produits ; avec dryRun, vérifie sans rien enregistrer. */
+  importCatalog(rows: ImportRow[], dryRun: boolean): Observable<ImportResult> {
+    return this.http.post<ImportResult>('/api/products/import', { dryRun, rows });
   }
 
   movements(productId: string): Observable<Movement[]> {

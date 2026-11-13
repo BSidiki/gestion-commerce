@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.gestioncommerce.catalog.CatalogDtos.ActiveRequest;
+import com.gestioncommerce.catalog.CatalogImportService.ImportRequest;
+import com.gestioncommerce.catalog.CatalogImportService.ImportResult;
 import com.gestioncommerce.catalog.CatalogDtos.CategoryRequest;
 import com.gestioncommerce.catalog.CatalogDtos.CategoryView;
 import com.gestioncommerce.catalog.CatalogDtos.ProductDetail;
@@ -28,9 +30,20 @@ import jakarta.validation.Valid;
 public class CatalogController {
 
     private final CatalogService catalog;
+    private final CatalogImportService catalogImport;
 
-    public CatalogController(CatalogService catalog) {
+    public CatalogController(CatalogService catalog, CatalogImportService catalogImport) {
         this.catalog = catalog;
+        this.catalogImport = catalogImport;
+    }
+
+    /**
+     * Import d'un tableau de produits. Avec dryRun=true, vérifie chaque ligne sans rien enregistrer.
+     * Les lignes en erreur sont signalées une à une ; les autres sont importées.
+     */
+    @PostMapping("/products/import")
+    ImportResult importProducts(@RequestBody ImportRequest request) {
+        return catalogImport.run(request);
     }
 
     @PostMapping("/categories")

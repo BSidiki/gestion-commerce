@@ -9,11 +9,11 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 
 | Fait | À venir |
 | --- | --- |
-| Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Interface servie par le backend (un seul programme) |
-| Catégories, produits, conditionnements, prix par niveau, codes-barres | Comptes utilisateurs et rôles |
-| Réceptions, ajustements motivés, journal des mouvements | Impression sur imprimante thermique |
+| Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Impression sur imprimante thermique |
+| Catégories, produits, conditionnements, prix par niveau, codes-barres | |
+| Réceptions, ajustements motivés, journal des mouvements | |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
-| Coût moyen pondéré, alertes de seuil | Import du catalogue depuis Excel |
+| Coût moyen pondéré, alertes de seuil | |
 | Interface Angular : liste des produits, création, fiche produit, réception, correction de stock | |
 | Écran de caisse (recherche par nom ou code-barres, panier, encaissement, crédit, reçu) et ventes du jour | |
 | Clients et remboursements, dépenses, ouverture et clôture de caisse avec écart | |
@@ -23,6 +23,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Licence hors ligne : essai de 15 jours, licence signée de 3 mois à partir de son enregistrement, lecture seule à l'échéance | |
 | Comptes propriétaire, secrétaire et vendeur, droits par rôle, journal des opérations sensibles | |
 | Modification d'un produit (nom, seuil, prix, codes-barres, nouveaux conditionnements) et désactivation | |
+| Import du catalogue depuis Excel : copier-coller ou fichier CSV, vérification avant import | |
 
 ## Prérequis
 
@@ -114,6 +115,7 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | GET | `/api/products` | Lister les produits (`?lowStock=true` : sous le seuil d'alerte ; `?includeInactive=true` : avec les désactivés) |
 | PUT | `/api/products/{id}` | Modifier un produit, ses prix, ses codes-barres ; ajouter des conditionnements |
 | POST | `/api/products/{id}/active` | Désactiver ou réactiver un produit |
+| POST | `/api/products/import` | Importer un tableau de produits (`dryRun: true` : vérifier sans rien enregistrer) |
 | GET | `/api/products/{id}` | Détail d'un produit |
 | POST | `/api/stock/receptions` | Recevoir de la marchandise |
 | POST | `/api/stock/adjustments` | Corriger le stock avec un motif |
@@ -183,6 +185,20 @@ curl -X POST http://127.0.0.1:8080/api/stock/adjustments -H "Content-Type: appli
 - Les ventes passées gardent le nom et le prix du moment de la vente.
 - Chaque changement de prix est inscrit au journal, avec l'ancien et le nouveau prix.
 
+### Import du catalogue depuis Excel
+
+Page **Produits → Importer depuis Excel**, ouverte au propriétaire et à la secrétaire. On copie les cellules
+du tableur, titres compris, et on les colle ; un fichier CSV convient aussi. Un modèle se télécharge depuis la page.
+
+- Colonnes reconnues, dans n'importe quel ordre : Nom (seule obligatoire), Catégorie, Unité, Prix détail,
+  Prix plancher, Code-barres, Seuil d'alerte, Stock initial, Coût d'achat, Conditionnement, Contenu, Prix gros,
+  Prix plancher gros. Les colonnes inconnues sont ignorées et signalées.
+- « Vérifier le tableau » joue l'import sans rien enregistrer et donne le résultat ligne par ligne.
+- Une ligne en erreur n'empêche pas les autres. Un produit dont le nom existe déjà est laissé tel quel :
+  relancer le même import ne crée pas de doublon, et ne modifie aucun produit existant.
+- Le stock initial entre comme une réception, valorisée au coût d'achat indiqué. Les catégories absentes sont créées.
+- Au plus 2 000 lignes par import. Un classeur `.xlsx` ne se lit pas directement : copier-coller ou enregistrer en CSV.
+
 ### Règles d'une vente
 
 - La vente, ses lignes, ses paiements, son crédit et ses sorties de stock sont écrits ensemble, ou pas du tout.
@@ -243,5 +259,5 @@ frontend/src/app/
 ├── features/backup/      sauvegarde et restauration
 ├── features/auth/        connexion, première installation
 ├── features/users/       comptes, mon compte, journal
-└── features/products/    liste, création et fiche produit
+└── features/products/    liste, création, fiche produit, import
 ```
