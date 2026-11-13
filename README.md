@@ -29,6 +29,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Tableau de bord : activité par période, produits les plus vendus, stock qui dort, crédits à relancer, export Excel | |
 | Fournisseurs : achats qui entrent en stock, achats à crédit, dettes et paiements | |
 | Inventaire physique : comptage, écarts chiffrés, correction du stock à la validation | |
+| Remise sur le total d'une vente ; devis imprimable, transformable en vente | |
 
 ## Prérequis
 
@@ -153,6 +154,9 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/users/{id}/password`, `/api/users/{id}/active` | Redonner un mot de passe, désactiver ou réactiver un compte (propriétaire) |
 | POST | `/api/users/{id}/role` | Changer le rôle d'un compte (propriétaire) |
 | GET | `/api/audit` | Journal des opérations sensibles (propriétaire) |
+| GET, POST | `/api/quotes` | Lister les devis, en créer un (aucun effet sur le stock ni la caisse) |
+| GET | `/api/quotes/{id}` | Un devis et ses lignes |
+| POST | `/api/quotes/{id}/cancel` | Annuler un devis ouvert |
 | GET, POST | `/api/stock-counts` | Lister les inventaires, en commencer un (un seul à la fois) |
 | GET | `/api/stock-counts/{id}` | Un inventaire et ses comptages |
 | PUT, DELETE | `/api/stock-counts/{id}/lines/{productId}` | Enregistrer, remplacer ou retirer le comptage d'un produit |
@@ -224,6 +228,21 @@ du tableur, titres compris, et on les colle ; un fichier CSV convient aussi. Un 
   relancer le même import ne crée pas de doublon, et ne modifie aucun produit existant.
 - Le stock initial entre comme une réception, valorisée au coût d'achat indiqué. Les catégories absentes sont créées.
 - Au plus 2 000 lignes par import. Un classeur `.xlsx` ne se lit pas directement : copier-coller ou enregistrer en CSV.
+
+### Remises et devis
+
+- **Remise sur une ligne** : comme avant, on change le prix de l'article à la caisse, jusqu'à son prix plancher.
+- **Remise sur le total** : un montant en francs, saisi à la caisse. Le total enregistré en est net ; le reçu
+  montre le sous-total, la remise et le total. La vente entière ne peut pas descendre sous la somme des prix
+  planchers de ses articles, sauf pour le propriétaire — c'est alors inscrit au journal.
+- **Devis** : à la caisse, on compose le panier puis « Faire un devis plutôt qu'une vente », avec un nom de
+  client et une durée de validité. Le devis s'imprime au format du reçu. Il ne touche ni le stock ni la caisse,
+  et ne réserve pas la marchandise. Les mêmes prix planchers s'appliquent.
+- **Transformer en vente** : le devis recharge la caisse avec ses articles, ses prix et sa remise ; on encaisse
+  normalement. Les prix sont revérifiés à ce moment-là. Un devis ne se transforme qu'une fois ; un devis annulé
+  ou déjà vendu est refusé. Un devis expiré reste transformable.
+- Limite : dans le tableau de bord, le classement des produits se fait sur le prix des lignes, avant la remise
+  sur le total ; le chiffre d'affaires et la marge, eux, en sont nets.
 
 ### Inventaire physique
 
@@ -341,6 +360,7 @@ backend/src/main/java/com/gestioncommerce/
 ├── sales/                ventes, paiements, annulation, rapport du jour
 ├── cash/                 dépenses, ouverture et clôture de caisse
 ├── backup/               sauvegarde, restauration, historique
+├── quotes/               devis
 ├── stockcount/           inventaire physique
 ├── suppliers/            fournisseurs, achats, paiements
 ├── reports/              rapports par période, stock, crédits
@@ -355,6 +375,7 @@ frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
 ├── features/pos/         écran de caisse et reçu
 ├── features/sales/       ventes du jour, résumé, annulation, reçu
+├── features/quotes/      liste et fiche des devis
 ├── features/stockcount/  inventaire physique
 ├── features/suppliers/   fournisseurs, fiche, saisie d'un achat
 ├── features/reports/     tableau de bord

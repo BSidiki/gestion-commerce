@@ -34,12 +34,32 @@ public final class SalesDtos {
      *                       renvoyer la même requête ne crée pas une seconde vente
      * @param customerId     obligatoire si la vente n'est pas entièrement payée
      * @param payments       encaissements ; ce qui manque pour atteindre le total part en crédit
+     * @param discount       remise sur le total, en francs CFA ; absente ou zéro s'il n'y en a pas
+     * @param quoteId        le devis que cette vente concrétise, s'il y en a un
      */
     public record SaleRequest(
             @NotBlank String idempotencyKey,
             String customerId,
             @NotEmpty @Valid List<SaleItemRequest> items,
-            @Valid List<PaymentRequest> payments) {
+            @Valid List<PaymentRequest> payments,
+            @PositiveOrZero Long discount,
+            String quoteId) {
+    }
+
+    /** Une ligne dont le prix a été vérifié contre le catalogue. */
+    public record PricedItem(
+            String productId,
+            String packagingId,
+            String productName,
+            String packagingName,
+            long factor,
+            long quantity,
+            long unitPrice,
+            long lineTotal) {
+    }
+
+    /** @param total subtotal - discount */
+    public record Pricing(List<PricedItem> items, long subtotal, long discount, long total) {
     }
 
     public record CancelRequest(@NotBlank String reason) {
@@ -63,6 +83,8 @@ public final class SalesDtos {
             String id,
             long number,
             String customerId,
+            /** Remise sur le total ; total en est déjà net. */
+            long discount,
             long total,
             long paid,
             long credit,

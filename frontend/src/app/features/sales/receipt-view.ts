@@ -89,7 +89,7 @@ import { ShopState } from '../../core/shop-state';
         }
       }
 
-      <h1>Reçu n° {{ sale().number }}</h1>
+      <h1>{{ heading() || 'Reçu n° ' + sale().number }}</h1>
       <p class="meta">{{ date(sale().createdAt) }}</p>
       @if (customerName()) {
         <p class="meta">Client : {{ customerName() }}</p>
@@ -111,6 +111,12 @@ import { ShopState } from '../../core/shop-state';
       </div>
 
       <dl class="totals">
+        @if (sale().discount > 0) {
+          <dt>Sous-total</dt>
+          <dd>{{ money(sale().total + sale().discount) }}</dd>
+          <dt>Remise</dt>
+          <dd>− {{ money(sale().discount) }}</dd>
+        }
         <dt>Total</dt>
         <dd class="strong">{{ money(sale().total) }}</dd>
         @for (p of sale().payments; track $index) {
@@ -131,7 +137,7 @@ import { ShopState } from '../../core/shop-state';
         @if (shop()?.receiptFooter; as footer) {
           <p>{{ footer }}</p>
         }
-        <p class="small">Reçu interne. Ce document ne tient pas lieu de facture.</p>
+        <p class="small">{{ footnote() || 'Reçu interne. Ce document ne tient pas lieu de facture.' }}</p>
       </div>
     </section>
   `,
@@ -141,6 +147,9 @@ export class ReceiptView {
 
   readonly sale = input.required<Sale>();
   readonly customerName = input<string | null>(null);
+  /** Titre et mention de bas de page, quand le document n'est pas un reçu de vente (un devis). */
+  readonly heading = input<string | null>(null);
+  readonly footnote = input<string | null>(null);
   /** Monnaie rendue au client : connue seulement au moment de l'encaissement. */
   readonly change = input(0);
   /** Réglages à afficher à la place de ceux enregistrés : sert à l'aperçu de la page Boutique. */

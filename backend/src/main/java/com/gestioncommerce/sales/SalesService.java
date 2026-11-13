@@ -24,6 +24,8 @@ import com.gestioncommerce.inventory.StockService;
 import com.gestioncommerce.sales.SalesDtos.DailyReport;
 import com.gestioncommerce.sales.SalesDtos.PaymentRequest;
 import com.gestioncommerce.sales.SalesDtos.PaymentView;
+import com.gestioncommerce.sales.SalesDtos.PricedItem;
+import com.gestioncommerce.sales.SalesDtos.Pricing;
 import com.gestioncommerce.sales.SalesDtos.SaleItemRequest;
 import com.gestioncommerce.sales.SalesDtos.SaleItemView;
 import com.gestioncommerce.sales.SalesDtos.SaleRequest;
@@ -63,7 +65,8 @@ public class SalesService {
             Long listPrice,
             long unitCostMilli,
             long lineTotal,
-            boolean belowFloor) {
+            boolean belowFloor,
+            long floorPrice) {
     }
 
     private record Catalog(
@@ -92,12 +95,15 @@ public class SalesService {
         }
 
         List<Line> lines = new ArrayList<>();
-        long total = 0;
+        long subtotal = 0;
         for (SaleItemRequest item : request.items()) {
             Line line = resolve(item);
             lines.add(line);
-            total = Math.addExact(total, line.lineTotal());
+            subtotal = Math.addExact(subtotal, line.lineTotal());
         }
+        long discount = request.discount() == null ? 0 : request.discount();
+        boolean discountBelowFloor = checkDiscount(lines, subtotal, discount);
+        long total = subtotal - discount;
 
         long paid = 0;
         List<PaymentRequest> payments = request.payments() == null ? List.of() : request.payments();
@@ -120,11 +126,12 @@ public class SalesService {
         String businessDate = LocalDate.now().toString();
 
         jdbc.sql("""
-                INSERT INTO sale (id, number, idempotency_key, customer_id, total, paid, credit,
+                INSERT INTO sale (id, number, idempotency_key, customer_id, discount, total, paid, credit,
                                   business_date, created_at, created_by)
-                VALUES (:id, :number, :key, :customerId, :total, :paid, :credit, :businessDate, :createdAt,
-                        :createdBy)
+                VALUES (:id, :number, :key, :customerId, :discount, :total, :paid, :credit, :businessDate,
+                        :createdAt, :createdBy)
                 """)
+                .param("discount", discount)
                 .param("createdBy", CurrentUser.username())
                 .param("id", saleId)
                 .param("number", number)
@@ -138,6 +145,10 @@ public class SalesService {
                 .update();
 
         String label = "Vente n° " + number;
+        if (discountBelowFloor) {
+            audit.log("VENTE_SOUS_PLANCHER", label + " : remise de " + discount + " F sur un total de "
+                    + subtotal + " F");
+        }
         for (Line line : lines) {
             if (line.belowFloor()) {
                 audit.log("VENTE_SOUS_PLANCHER", label + " : « " + line.productName() + " (" + line.packagingName()
@@ -187,6 +198,18 @@ public class SalesService {
         if (credit > 0) {
             customers.addLedgerEntry(request.customerId(), "CREDIT", credit, saleId, null, label);
         }
+
+        // Un devis ne se transforme qu'une fois : s'il n'est plus ouvert, la vente entière est refusée.
+        if (request.quoteId() != null && !request.quoteId().isBlank()) {
+            int updated = jdbc.sql("""
+                    UPDATE quote SET status = 'TRANSFORME', sale_id = ? WHERE id = ? AND status = 'OUVERT'
+                    """)
+                    .params(saleId, request.quoteId())
+                    .update();
+            if (updated == 0) {
+                throw new BusinessException("Ce devis n'est plus ouvert : il a déjà été transformé ou annulé.");
+            }
+        }
         return get(saleId);
     }
 
@@ -234,13 +257,15 @@ public class SalesService {
                 .list();
 
         return jdbc.sql("""
-                SELECT id, number, customer_id, total, paid, credit, status, business_date, created_at, cancel_reason
+                SELECT id, number, customer_id, discount, total, paid, credit, status, business_date, created_at,
+                       cancel_reason
                 FROM sale
                 WHERE id = ?
                 """)
                 .param(saleId)
                 .query((rs, i) -> new SaleView(rs.getString("id"), rs.getLong("number"),
-                        rs.getString("customer_id"), rs.getLong("total"), rs.getLong("paid"),
+                        rs.getString("customer_id"), rs.getLong("discount"), rs.getLong("total"),
+                        rs.getLong("paid"),
                         rs.getLong("credit"), rs.getString("status"), rs.getString("business_date"),
                         rs.getString("created_at"), rs.getString("cancel_reason"), items, payments))
                 .optional()
@@ -335,7 +360,58 @@ public class SalesService {
 
         return new Line(item.packagingId(), catalog.productId(), catalog.productName(), catalog.packagingName(),
                 catalog.factor(), item.quantity(), item.unitPrice(), catalog.listPrice(), catalog.avgCostMilli(),
-                Math.multiplyExact(item.quantity(), item.unitPrice()), belowFloor);
+                Math.multiplyExact(item.quantity(), item.unitPrice()), belowFloor,
+                catalog.minFloorPrice() == null ? 0 : catalog.minFloorPrice());
+    }
+
+    /**
+     * Vérifie la remise sur le total. Elle ne dépasse pas le total, et la vente entière ne passe pas
+     * sous la somme des prix planchers, sauf pour le propriétaire.
+     *
+     * @return vrai si la remise fait passer la vente sous les prix planchers (propriétaire seulement)
+     */
+    private boolean checkDiscount(List<Line> lines, long subtotal, long discount) {
+        if (discount == 0) {
+            return false;
+        }
+        if (discount > subtotal) {
+            throw new BusinessException("La remise (" + discount + " F) dépasse le total de la vente ("
+                    + subtotal + " F).");
+        }
+        long floorTotal = 0;
+        for (Line line : lines) {
+            // Une ligne déjà vendue sous son plancher par le propriétaire ne relève pas le minimum.
+            long floor = Math.min(line.floorPrice(), line.unitPrice());
+            floorTotal = Math.addExact(floorTotal, Math.multiplyExact(line.quantity(), floor));
+        }
+        boolean belowFloor = subtotal - discount < floorTotal;
+        if (belowFloor && !CurrentUser.isOwner()) {
+            throw new BusinessException("Avec cette remise, la vente passe sous les prix planchers : "
+                    + "elle ne peut pas descendre sous " + floorTotal + " F, soit une remise de "
+                    + (subtotal - floorTotal) + " F au plus.");
+        }
+        return belowFloor;
+    }
+
+    /**
+     * Calcule le prix d'un panier sans rien enregistrer : sert aux devis.
+     * Les mêmes règles de prix plancher qu'à la vente s'appliquent.
+     */
+    @Transactional
+    public Pricing price(List<SaleItemRequest> items, Long discountOrNull) {
+        List<Line> lines = new ArrayList<>();
+        long subtotal = 0;
+        for (SaleItemRequest item : items) {
+            Line line = resolve(item);
+            lines.add(line);
+            subtotal = Math.addExact(subtotal, line.lineTotal());
+        }
+        long discount = discountOrNull == null ? 0 : discountOrNull;
+        checkDiscount(lines, subtotal, discount);
+        return new Pricing(lines.stream()
+                .map(line -> new PricedItem(line.productId(), line.packagingId(), line.productName(),
+                        line.packagingName(), line.factor(), line.quantity(), line.unitPrice(), line.lineTotal()))
+                .toList(), subtotal, discount, subtotal - discount);
     }
 
     private static Long nullableLong(ResultSet rs, String column) throws SQLException {

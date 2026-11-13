@@ -164,6 +164,48 @@ export interface SaleRequest {
   customerId: string | null;
   items: SaleItemRequest[];
   payments: PaymentLine[];
+  /** Remise sur le total, en francs CFA. */
+  discount?: number | null;
+  /** Le devis que cette vente concrétise. */
+  quoteId?: string | null;
+}
+
+export interface QuoteItem {
+  productId: string;
+  packagingId: string;
+  productName: string;
+  packagingName: string;
+  factor: number;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface Quote {
+  id: string;
+  number: number;
+  customerId: string | null;
+  customerName: string | null;
+  discount: number;
+  /** Total net de la remise. */
+  total: number;
+  status: 'OUVERT' | 'TRANSFORME' | 'ANNULE';
+  validUntil: string;
+  note: string | null;
+  saleId: string | null;
+  saleNumber: number | null;
+  createdAt: string;
+  createdBy: string | null;
+  items: QuoteItem[];
+}
+
+export interface QuoteRequest {
+  customerId: string | null;
+  customerName: string | null;
+  items: SaleItemRequest[];
+  discount: number;
+  validDays: number;
+  note: string | null;
 }
 
 export interface SaleItem {
@@ -181,6 +223,8 @@ export interface Sale {
   id: string;
   number: number;
   customerId: string | null;
+  /** Remise sur le total ; total en est déjà net. */
+  discount: number;
   total: number;
   paid: number;
   credit: number;
@@ -690,6 +734,22 @@ export class Api {
 
   audit(): Observable<AuditEntry[]> {
     return this.http.get<AuditEntry[]>('/api/audit');
+  }
+
+  quotes(): Observable<Quote[]> {
+    return this.http.get<Quote[]>('/api/quotes');
+  }
+
+  quote(quoteId: string): Observable<Quote> {
+    return this.http.get<Quote>(`/api/quotes/${quoteId}`);
+  }
+
+  createQuote(request: QuoteRequest): Observable<Quote> {
+    return this.http.post<Quote>('/api/quotes', request);
+  }
+
+  cancelQuote(quoteId: string): Observable<Quote> {
+    return this.http.post<Quote>(`/api/quotes/${quoteId}/cancel`, {});
   }
 
   stockCounts(): Observable<StockCountSummary[]> {

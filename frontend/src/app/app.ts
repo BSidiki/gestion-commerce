@@ -42,6 +42,7 @@ import { LicenseState } from './core/license-state';
               <app-icon name="caisse" /> Caisse
             </a>
             <a routerLink="/ventes" routerLinkActive="active"><app-icon name="ventes" /> Ventes du jour</a>
+            <a routerLink="/devis" routerLinkActive="active"><app-icon name="devis" /> Devis</a>
             <a routerLink="/clients" routerLinkActive="active"><app-icon name="clients" /> Clients</a>
 
             <p class="group">Gérer</p>

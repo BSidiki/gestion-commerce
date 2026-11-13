@@ -1,6 +1,6 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import {
   Api,
@@ -9,6 +9,7 @@ import {
   PaymentLine,
   ProductDetail,
   ProductSummary,
+  Quote,
   Sale,
   errorMessage,
 } from '../../core/api';
@@ -100,6 +101,12 @@ function floorPrice(packaging: Packaging): number | null {
 
         <section class="card ticket">
           <h2>Vente en cours</h2>
+          @if (quote(); as q) {
+            <p class="alert success">
+              Devis n° {{ q.number }}{{ q.customerName ? ' — ' + q.customerName : '' }} : vérifiez les articles, puis
+              encaissez. <button type="button" class="link" (click)="dropQuote()">Ne plus suivre ce devis</button>
+            </p>
+          }
 
           @if (cart().length === 0) {
             <p class="muted">Ajoutez un article pour commencer.</p>
@@ -167,8 +174,25 @@ function floorPrice(packaging: Packaging): number | null {
               </tbody>
             </table>
 
+            <label class="discount">
+              Remise sur le total (F)
+              <input
+                class="narrow"
+                type="number"
+                min="0"
+                [ngModel]="discount()"
+                (ngModelChange)="setDiscount($event)"
+              />
+            </label>
+
             <p class="grand-total">
-              Total <strong>{{ money(total()) }}</strong>
+              Total
+              <span>
+                @if (discountAmount() > 0) {
+                  <s class="muted">{{ money(subtotal()) }}</s>
+                }
+                <strong>{{ money(total()) }}</strong>
+              </span>
             </p>
 
             <div class="grid two">
@@ -234,6 +258,31 @@ function floorPrice(packaging: Packaging): number | null {
           >
             {{ saving() ? 'Enregistrement…' : 'Valider la vente' }}
           </button>
+
+          @if (cart().length > 0 && !quote()) {
+            @if (quoting()) {
+              <div class="quote-box">
+                <div class="grid two">
+                  <label>
+                    Nom du client (facultatif)
+                    <input name="quoteCustomer" [(ngModel)]="quoteCustomer" />
+                  </label>
+                  <label>
+                    Valable pendant (jours)
+                    <input name="quoteDays" type="number" min="1" max="365" [(ngModel)]="quoteDays" />
+                  </label>
+                </div>
+                <div class="actions">
+                  <button type="button" class="button primary" (click)="saveQuote()" [disabled]="saving()">
+                    Enregistrer le devis
+                  </button>
+                  <button type="button" class="button" (click)="quoting.set(false)">Annuler</button>
+                </div>
+              </div>
+            } @else {
+              <button type="button" class="button" (click)="quoting.set(true)">Faire un devis plutôt qu'une vente</button>
+            }
+          }
         </section>
       </div>
     }
@@ -255,6 +304,14 @@ export class Pos {
   protected readonly error = signal<string | null>(null);
   protected readonly saving = signal(false);
   protected readonly receipt = signal<Receipt | null>(null);
+  /** Remise sur le total, saisie en francs. */
+  protected readonly discount = signal<number | null>(null);
+  /** Le devis en cours de transformation en vente, s'il y en a un. */
+  protected readonly quote = signal<Quote | null>(null);
+  protected readonly quoting = signal(false);
+
+  protected quoteCustomer = '';
+  protected quoteDays = 15;
 
   protected newCustomerName = '';
   protected newCustomerPhone = '';
@@ -277,7 +334,10 @@ export class Pos {
       .slice(0, MAX_RESULTS);
   });
 
-  protected readonly total = computed(() => this.cart().reduce((sum, l) => sum + l.quantity * l.unitPrice, 0));
+  protected readonly subtotal = computed(() => this.cart().reduce((sum, l) => sum + l.quantity * l.unitPrice, 0));
+  /** La remise retenue : jamais négative, jamais plus que le sous-total. */
+  protected readonly discountAmount = computed(() => Math.min(Math.max(this.discount() ?? 0, 0), this.subtotal()));
+  protected readonly total = computed(() => this.subtotal() - this.discountAmount());
   protected readonly paid = computed(() => (this.cashReceived() ?? 0) + (this.mobileMoney() ?? 0));
   protected readonly change = computed(() => Math.max(0, this.paid() - this.total()));
   protected readonly credit = computed(() => Math.max(0, this.total() - this.paid()));
@@ -287,6 +347,10 @@ export class Pos {
   protected readonly date = dateTime;
   protected readonly priceOf = defaultPrice;
   protected readonly floorOf = floorPrice;
+
+  private readonly router = inject(Router);
+  /** Identifiant du devis à transformer, passé par la page du devis. */
+  private pendingQuoteId = inject(ActivatedRoute).snapshot.queryParamMap.get('devis');
 
   constructor() {
     this.loadCatalog();
@@ -361,6 +425,52 @@ export class Pos {
     this.mobileMoney.set(value);
   }
 
+  protected setDiscount(value: number | null): void {
+    this.changed();
+    this.discount.set(value);
+  }
+
+  /** Enregistre le panier comme devis : ni stock ni caisse ne bougent. */
+  protected saveQuote(): void {
+    const problem = this.checkLines();
+    if (problem) {
+      this.error.set(problem);
+      return;
+    }
+    const days = Number(this.quoteDays);
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      this.error.set('La validité du devis va de 1 à 365 jours.');
+      return;
+    }
+    this.error.set(null);
+    this.saving.set(true);
+    this.api
+      .createQuote({
+        customerId: this.customerId(),
+        customerName: this.quoteCustomer.trim() || null,
+        items: this.cart().map(l => ({ packagingId: l.packaging.id, quantity: l.quantity, unitPrice: l.unitPrice })),
+        discount: this.discountAmount(),
+        validDays: days,
+        note: null,
+      })
+      .subscribe({
+        next: quote => {
+          this.saving.set(false);
+          this.router.navigate(['/devis', quote.id]);
+        },
+        error: e => {
+          this.error.set(errorMessage(e));
+          this.saving.set(false);
+        },
+      });
+  }
+
+  /** Garde le panier, mais la vente ne sera plus rattachée au devis. */
+  protected dropQuote(): void {
+    this.quote.set(null);
+    this.router.navigate([], { queryParams: {} });
+  }
+
   protected setCustomer(id: string | null): void {
     this.changed();
     this.customerId.set(id);
@@ -421,12 +531,17 @@ export class Pos {
           unitPrice: l.unitPrice,
         })),
         payments,
+        discount: this.discountAmount(),
+        quoteId: this.quote()?.id ?? null,
       })
       .subscribe({
         next: sale => {
           const customerName = this.customers().find(c => c.id === sale.customerId)?.name ?? null;
           this.receipt.set({ sale, change, customerName });
           this.saving.set(false);
+          if (this.quote()) {
+            this.router.navigate([], { queryParams: {} });
+          }
           this.reset();
           this.loadCatalog();
         },
@@ -447,18 +562,9 @@ export class Pos {
   }
 
   private check(): string | null {
-    for (const line of this.cart()) {
-      if (!Number.isInteger(line.quantity) || line.quantity < 1) {
-        return `Indiquez une quantité entière d'au moins 1 pour « ${line.product.name} ».`;
-      }
-      if (!Number.isInteger(line.unitPrice) || line.unitPrice < 0) {
-        return `Indiquez un prix en francs entiers pour « ${line.product.name} ».`;
-      }
-      const floor = floorPrice(line.packaging);
-      // Seul le propriétaire peut vendre sous le prix plancher ; l'opération est inscrite au journal.
-      if (floor != null && line.unitPrice < floor && !this.auth.isOwner()) {
-        return `Le prix de « ${line.product.name} » est sous le prix plancher de ${fcfa(floor)}.`;
-      }
+    const problem = this.checkLines();
+    if (problem) {
+      return problem;
     }
     const cash = this.cashReceived() ?? 0;
     const mobileMoney = this.mobileMoney() ?? 0;
@@ -474,6 +580,65 @@ export class Pos {
     return null;
   }
 
+  /** Contrôles communs à la vente et au devis : quantités, prix, remise. */
+  private checkLines(): string | null {
+    for (const line of this.cart()) {
+      if (!Number.isInteger(line.quantity) || line.quantity < 1) {
+        return `Indiquez une quantité entière d'au moins 1 pour « ${line.product.name} ».`;
+      }
+      if (!Number.isInteger(line.unitPrice) || line.unitPrice < 0) {
+        return `Indiquez un prix en francs entiers pour « ${line.product.name} ».`;
+      }
+      const floor = floorPrice(line.packaging);
+      // Seul le propriétaire peut vendre sous le prix plancher ; l'opération est inscrite au journal.
+      if (floor != null && line.unitPrice < floor && !this.auth.isOwner()) {
+        return `Le prix de « ${line.product.name} » est sous le prix plancher de ${fcfa(floor)}.`;
+      }
+    }
+    const discount = this.discount() ?? 0;
+    if (!Number.isInteger(discount) || discount < 0) {
+      return 'La remise doit être un montant en francs entiers, sans signe moins.';
+    }
+    if (discount > this.subtotal()) {
+      return `La remise dépasse le total de la vente (${fcfa(this.subtotal())}).`;
+    }
+    return null;
+  }
+
+  /** Remplit le panier avec les articles d'un devis encore ouvert. */
+  private loadQuote(quoteId: string): void {
+    this.api.quote(quoteId).subscribe({
+      next: quote => {
+        if (quote.status !== 'OUVERT') {
+          this.error.set(`Le devis n° ${quote.number} n'est plus ouvert : il a déjà été transformé ou annulé.`);
+          return;
+        }
+        const lines: CartLine[] = [];
+        const missing: string[] = [];
+        for (const item of quote.items) {
+          const entry = this.catalog().find(e => e.packagings.some(p => p.id === item.packagingId));
+          const packaging = entry?.packagings.find(p => p.id === item.packagingId);
+          if (entry && packaging) {
+            lines.push({ product: entry.product, packaging, quantity: item.quantity, unitPrice: item.unitPrice });
+          } else {
+            missing.push(item.productName);
+          }
+        }
+        this.cart.set(lines);
+        this.discount.set(quote.discount || null);
+        this.customerId.set(quote.customerId);
+        this.quote.set(quote);
+        this.idempotencyKey = newIdempotencyKey();
+        this.error.set(
+          missing.length
+            ? `Ces articles du devis ne sont plus au catalogue et n'ont pas été repris : ${missing.join(', ')}.`
+            : null,
+        );
+      },
+      error: e => this.error.set(errorMessage(e)),
+    });
+  }
+
   private changed(): void {
     this.idempotencyKey = newIdempotencyKey();
     this.error.set(null);
@@ -484,6 +649,10 @@ export class Pos {
     this.cashReceived.set(null);
     this.mobileMoney.set(null);
     this.customerId.set(null);
+    this.discount.set(null);
+    this.quote.set(null);
+    this.quoting.set(false);
+    this.quoteCustomer = '';
     this.search.set('');
     this.idempotencyKey = newIdempotencyKey();
     // Les soldes des clients ont pu changer avec cette vente.
@@ -495,6 +664,10 @@ export class Pos {
       next: catalog => {
         this.catalog.set(catalog);
         this.loading.set(false);
+        if (this.pendingQuoteId) {
+          this.loadQuote(this.pendingQuoteId);
+          this.pendingQuoteId = null;
+        }
       },
       error: e => {
         this.error.set(errorMessage(e));
