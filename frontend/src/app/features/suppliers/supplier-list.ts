@@ -71,6 +71,8 @@ import { fcfa } from '../../core/format';
               <td class="num">
                 @if (s.balance > 0) {
                   <strong>{{ money(s.balance) }}</strong>
+                } @else if (s.balance < 0) {
+                  <span class="muted">avoir de {{ money(-s.balance) }}</span>
                 } @else {
                   <span class="muted">0 F</span>
                 }

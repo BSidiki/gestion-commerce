@@ -90,6 +90,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   BOUTIQUE_MODIFIEE: 'Boutique modifiée',
   ROLE_CHANGE: 'Rôle changé',
   ACHAT_ENREGISTRE: 'Achat enregistré',
+  ACHAT_ANNULE: 'Achat annulé',
   INVENTAIRE_VALIDE: 'Inventaire validé',
   INVENTAIRE_ABANDONNE: 'Inventaire abandonné',
   FOURNISSEUR_PAYE: 'Fournisseur payé',

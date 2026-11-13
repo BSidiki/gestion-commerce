@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.gestioncommerce.suppliers.SupplierDtos.PurchaseCancelRequest;
 import com.gestioncommerce.suppliers.SupplierDtos.PurchaseRequest;
 import com.gestioncommerce.suppliers.SupplierDtos.PurchaseView;
 import com.gestioncommerce.suppliers.SupplierDtos.SupplierDetail;
@@ -65,6 +66,12 @@ public class SupplierController {
     @ResponseStatus(HttpStatus.CREATED)
     PurchaseView createPurchase(@Valid @RequestBody PurchaseRequest request) {
         return suppliers.createPurchase(request);
+    }
+
+    /** Réservé au propriétaire (voir AuthInterceptor) : l'annulation corrige le stock. */
+    @PostMapping("/purchases/{id}/cancel")
+    PurchaseView cancelPurchase(@PathVariable String id, @Valid @RequestBody PurchaseCancelRequest request) {
+        return suppliers.cancelPurchase(id, request.reason());
     }
 
     @GetMapping("/purchases/{id}")

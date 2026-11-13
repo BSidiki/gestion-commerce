@@ -272,7 +272,7 @@ export interface Supplier {
   name: string;
   phone: string | null;
   note: string | null;
-  /** Ce que la boutique doit encore à ce fournisseur. */
+  /** Ce que la boutique doit encore à ce fournisseur ; négatif si c'est lui qui doit (achat annulé déjà payé). */
   balance: number;
 }
 
@@ -285,6 +285,8 @@ export interface SupplierEntry {
   fromCashDrawer: boolean;
   note: string | null;
   createdAt: string;
+  /** Vrai pour un achat annulé : il ne compte plus dans la dette. */
+  cancelled: boolean;
 }
 
 export interface SupplierDetail {
@@ -318,6 +320,8 @@ export interface Purchase {
   note: string | null;
   businessDate: string;
   createdAt: string;
+  status: 'VALIDE' | 'ANNULE';
+  cancelReason: string | null;
   items: {
     productId: string;
     productName: string;
@@ -806,6 +810,10 @@ export class Api {
 
   createPurchase(request: PurchaseRequest): Observable<Purchase> {
     return this.http.post<Purchase>('/api/purchases', request);
+  }
+
+  cancelPurchase(purchaseId: string, reason: string): Observable<Purchase> {
+    return this.http.post<Purchase>(`/api/purchases/${purchaseId}/cancel`, { reason });
   }
 
   purchase(purchaseId: string): Observable<Purchase> {

@@ -53,6 +53,9 @@ public class AuthInterceptor implements HandlerInterceptor {
     /** Valider un inventaire corrige le stock : comme un ajustement, c'est réservé au propriétaire. */
     private static final Pattern COUNT_VALIDATE = Pattern.compile("/api/stock-counts/[^/]+/validate");
 
+    /** Annuler un achat fait ressortir la marchandise du stock : réservé au propriétaire. */
+    private static final Pattern PURCHASE_CANCEL = Pattern.compile("/api/purchases/[^/]+/cancel");
+
     private final AuthService auth;
 
     public AuthInterceptor(AuthService auth) {
@@ -101,7 +104,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
         return write && (OWNER_ONLY_WRITES.contains(path) || SALE_CANCEL.matcher(path).matches()
-                || COUNT_VALIDATE.matcher(path).matches());
+                || COUNT_VALIDATE.matcher(path).matches() || PURCHASE_CANCEL.matcher(path).matches());
     }
 
     private static String sessionToken(HttpServletRequest request) {

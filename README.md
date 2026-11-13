@@ -167,6 +167,7 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/suppliers/{id}/payments` | Payer une dette envers le fournisseur |
 | POST | `/api/purchases` | Enregistrer une livraison : entrée en stock, dette pour ce qui n'est pas payé |
 | GET | `/api/purchases/{id}` | Détail d'un achat |
+| POST | `/api/purchases/{id}/cancel` | Annuler un achat : la marchandise ressort du stock (propriétaire) |
 | GET | `/api/reports/period?from=&to=` | Activité entre deux dates : totaux, journées, meilleurs produits, dépenses par catégorie, ventes par personne |
 | GET | `/api/reports/stock?dormantDays=30` | Valeur du stock, produits sous le seuil, produits en stock sans vente récente |
 | GET | `/api/reports/credits` | Clients qui doivent de l'argent, et depuis quand ils n'ont rien payé |
@@ -241,6 +242,7 @@ du tableur, titres compris, et on les colle ; un fichier CSV convient aussi. Un 
 - **Transformer en vente** : le devis recharge la caisse avec ses articles, ses prix et sa remise ; on encaisse
   normalement. Les prix sont revérifiés à ce moment-là. Un devis ne se transforme qu'une fois ; un devis annulé
   ou déjà vendu est refusé. Un devis expiré reste transformable.
+- La remise apparaît aussi dans la liste des ventes du jour.
 - Limite : dans le tableau de bord, le classement des produits se fait sur le prix des lignes, avant la remise
   sur le total ; le chiffre d'affaires et la marge, eux, en sont nets.
 
@@ -272,7 +274,10 @@ Pages **Fournisseurs**, ouvertes au propriétaire et à la secrétaire (elles mo
 - Un achat n'est pas une dépense : son coût entre dans le résultat au moment où la marchandise est vendue
   (coût des marchandises vendues), pas au moment où elle est payée.
 - Le vendeur garde la réception simple, depuis la fiche d'un produit, sans fournisseur.
-- Limite : un achat enregistré ne s'annule pas. Une erreur de quantité se corrige par un ajustement de stock.
+- **Annuler un achat** (propriétaire, avec un motif) : la marchandise ressort du stock, le coût moyen est recalculé
+  et l'achat ne compte plus dans la dette. C'est refusé si une partie de la marchandise a déjà été vendue. Ce qui
+  avait été payé reste enregistré : la fiche du fournisseur affiche alors un avoir.
+- Le tableau de bord montre le total des dettes fournisseurs et la liste des fournisseurs à payer.
 
 ### Tableau de bord
 

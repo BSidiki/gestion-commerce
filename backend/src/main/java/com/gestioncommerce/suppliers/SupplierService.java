@@ -38,7 +38,8 @@ public class SupplierService {
 
     private static final String SUPPLIER_SELECT = """
             SELECT s.id, s.name, s.phone, s.note,
-                   (SELECT COALESCE(SUM(p.total), 0) FROM purchase p WHERE p.supplier_id = s.id)
+                   (SELECT COALESCE(SUM(p.total), 0) FROM purchase p
+                    WHERE p.supplier_id = s.id AND p.status = 'VALIDE')
                    - (SELECT COALESCE(SUM(sp.amount), 0) FROM supplier_payment sp WHERE sp.supplier_id = s.id)
                    AS balance
             FROM supplier s
@@ -98,12 +99,13 @@ public class SupplierService {
         SupplierView supplier = view(supplierId);
         List<SupplierEntry> entries = jdbc.sql("""
                 SELECT 'ACHAT' AS type, p.total AS amount, p.id AS purchase_id, p.number AS purchase_number,
-                       NULL AS method, 0 AS from_drawer, p.note, p.created_at, 0 AS position
+                       NULL AS method, 0 AS from_drawer, p.note, p.created_at, 0 AS position,
+                       p.status = 'ANNULE' AS cancelled
                 FROM purchase p
                 WHERE p.supplier_id = :id
                 UNION ALL
                 SELECT 'PAIEMENT', sp.amount, sp.purchase_id, p.number,
-                       sp.method, sp.cash_session_id IS NOT NULL, sp.note, sp.created_at, 1
+                       sp.method, sp.cash_session_id IS NOT NULL, sp.note, sp.created_at, 1, 0
                 FROM supplier_payment sp
                 LEFT JOIN purchase p ON p.id = sp.purchase_id
                 WHERE sp.supplier_id = :id
@@ -117,7 +119,8 @@ public class SupplierService {
                     return new SupplierEntry(rs.getString("type"), rs.getLong("amount"),
                             rs.getString("purchase_id"), numberOrNull,
                             method == null ? null : PaymentMethod.valueOf(method),
-                            rs.getInt("from_drawer") == 1, rs.getString("note"), rs.getString("created_at"));
+                            rs.getInt("from_drawer") == 1, rs.getString("note"), rs.getString("created_at"),
+                            rs.getInt("cancelled") == 1);
                 })
                 .list();
         return new SupplierDetail(supplier, entries);
@@ -214,7 +217,7 @@ public class SupplierService {
                 .list();
         return jdbc.sql("""
                 SELECT p.id, p.number, p.supplier_id, s.name AS supplier_name, p.total, p.note,
-                       p.business_date, p.created_at,
+                       p.business_date, p.created_at, p.status, p.cancel_reason,
                        (SELECT COALESCE(SUM(sp.amount), 0) FROM supplier_payment sp
                         WHERE sp.purchase_id = p.id) AS paid
                 FROM purchase p
@@ -225,9 +228,40 @@ public class SupplierService {
                 .query((rs, i) -> new PurchaseView(rs.getString("id"), rs.getLong("number"),
                         rs.getString("supplier_id"), rs.getString("supplier_name"), rs.getLong("total"),
                         rs.getLong("paid"), rs.getString("note"), rs.getString("business_date"),
-                        rs.getString("created_at"), items))
+                        rs.getString("created_at"), rs.getString("status"), rs.getString("cancel_reason"), items))
                 .optional()
                 .orElseThrow(() -> new NotFoundException("Achat introuvable."));
+    }
+
+    /**
+     * Annule un achat par des écritures inverses : la marchandise ressort du stock et l'achat ne
+     * compte plus dans la dette. Refusé en entier si une partie de la marchandise a déjà été vendue.
+     * Ce qui a été payé au fournisseur reste enregistré : il le doit à la boutique.
+     */
+    @Transactional
+    public PurchaseView cancelPurchase(String purchaseId, String reason) {
+        PurchaseView purchase = getPurchase(purchaseId);
+        if (!"VALIDE".equals(purchase.status())) {
+            throw new BusinessException("Cet achat est déjà annulé.");
+        }
+        String label = "Annulation de l'achat n° " + purchase.number() + " — " + purchase.supplierName();
+        for (PurchaseItemView item : purchase.items()) {
+            long baseQty = Math.multiplyExact(item.quantity(), item.factor());
+            long inStock = jdbc.sql("SELECT stock_qty FROM product WHERE id = ?")
+                    .param(item.productId()).query(Long.class).single();
+            if (inStock < baseQty) {
+                throw new BusinessException("« " + item.productName() + " » : il faudrait en retirer " + baseQty
+                        + " du stock, mais il n'en reste que " + Math.max(inStock, 0)
+                        + ". Une partie a déjà été vendue : l'achat ne peut plus être annulé.");
+            }
+            stock.reverseReception(item.productId(), baseQty, item.totalCost(), label);
+        }
+        jdbc.sql("UPDATE purchase SET status = 'ANNULE', cancelled_at = ?, cancel_reason = ? WHERE id = ?")
+                .params(Timestamps.now(), reason.trim(), purchaseId)
+                .update();
+        audit.log("ACHAT_ANNULE", "Achat n° " + purchase.number() + " — " + purchase.supplierName() + " de "
+                + purchase.total() + " F : " + reason.trim());
+        return getPurchase(purchaseId);
     }
 
     // ---------- Paiements ----------

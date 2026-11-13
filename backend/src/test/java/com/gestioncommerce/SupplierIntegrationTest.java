@@ -150,6 +150,40 @@ class SupplierIntegrationTest {
                 {"amount": 1000, "method": "ESPECES", "fromCashDrawer": true}
                 """).andExpect(status().isUnprocessableEntity());
         mvc.perform(get("/api/suppliers/inconnu")).andExpect(status().isNotFound());
+
+        // --- Annulation d'un achat : impossible dès qu'une partie de la marchandise est vendue ---
+        postJson("/api/sales", """
+                {"idempotencyKey": "vente-avant-annulation",
+                 "items": [{"packagingId": "%s", "quantity": 10, "unitPrice": 1200}],
+                 "payments": [{"method": "ESPECES", "amount": 12000}]}
+                """.formatted(bottle)).andExpect(status().isCreated());
+        String cancel = """
+                {"reason": "Livraison refusée"}
+                """;
+        postJson("/api/purchases/" + purchaseId + "/cancel", cancel).andExpect(status().isUnprocessableEntity());
+        mvc.perform(get("/api/products/" + productId)).andExpect(jsonPath("$.product.stockQty").value(19));
+        mvc.perform(get("/api/suppliers")).andExpect(jsonPath("$[0].balance").value(10000));
+
+        // Une fois le stock revenu à 29, l'achat s'annule : la marchandise ressort, la dette disparaît.
+        postJson("/api/stock/receptions", """
+                {"productId": "%s", "packagingId": "%s", "quantity": 10, "totalCost": 9172}
+                """.formatted(productId, bottle)).andExpect(status().isCreated());
+        postJson("/api/purchases/" + purchaseId + "/cancel", cancel)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ANNULE"))
+                .andExpect(jsonPath("$.cancelReason").value("Livraison refusée"));
+        mvc.perform(get("/api/products/" + productId)).andExpect(jsonPath("$.product.stockQty").value(0));
+        mvc.perform(get("/api/products/" + productId + "/movements"))
+                .andExpect(jsonPath("$[0].type").value("ANNULATION"))
+                .andExpect(jsonPath("$[0].quantity").value(-5))
+                .andExpect(jsonPath("$[1].quantity").value(-24));
+        // Les 16 600 F déjà payés restent enregistrés : c'est maintenant le fournisseur qui les doit.
+        mvc.perform(get("/api/suppliers/" + supplierId))
+                .andExpect(jsonPath("$.supplier.balance").value(-16600))
+                .andExpect(jsonPath("$.entries[2].type").value("ACHAT"))
+                .andExpect(jsonPath("$.entries[2].cancelled").value(true))
+                .andExpect(jsonPath("$.entries[0].cancelled").value(false));
+        postJson("/api/purchases/" + purchaseId + "/cancel", cancel).andExpect(status().isUnprocessableEntity());
     }
 
     private ResultActions postJson(String path, String body) throws Exception {
