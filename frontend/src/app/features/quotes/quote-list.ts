@@ -38,7 +38,7 @@ export function quoteStatus(quote: Quote): { label: string; tone: 'ok' | 'warnin
   template: `
     <div class="page-head">
       <h1>Devis</h1>
-      <a class="button primary" routerLink="/">Nouveau devis depuis la caisse</a>
+      <a class="button primary" routerLink="/caisse">Nouveau devis depuis la caisse</a>
     </div>
 
     @if (error(); as message) {

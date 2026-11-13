@@ -17,6 +17,12 @@ export const routes: Routes = [
   },
   {
     path: '',
+    title: 'Accueil',
+    canActivate: [signedIn],
+    loadComponent: () => import('./features/home/home').then(m => m.Home),
+  },
+  {
+    path: 'caisse',
     title: 'Caisse',
     canActivate: [signedIn],
     loadComponent: () => import('./features/pos/pos').then(m => m.Pos),

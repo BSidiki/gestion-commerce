@@ -414,6 +414,15 @@ export interface ShopSettings {
   logo: string;
 }
 
+/** Réglages de la page d'accueil, choisis par le propriétaire. */
+export interface HomeSettings {
+  welcomeMessage: string;
+  /** Photo de couverture, en image encodée (data:image/…), ou chaîne vide. */
+  cover: string;
+  /** Identifiants des raccourcis affichés, dans l'ordre voulu. */
+  shortcuts: string[];
+}
+
 /** Ce que l'écran de connexion connaît de la boutique avant toute session. */
 export interface Branding {
   name: string;
@@ -830,6 +839,14 @@ export class Api {
 
   creditReport(): Observable<CreditReport> {
     return this.http.get<CreditReport>('/api/reports/credits');
+  }
+
+  home(): Observable<HomeSettings> {
+    return this.http.get<HomeSettings>('/api/home');
+  }
+
+  updateHome(settings: HomeSettings): Observable<HomeSettings> {
+    return this.http.put<HomeSettings>('/api/home', settings);
   }
 
   branding(): Observable<Branding> {

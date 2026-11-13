@@ -41,7 +41,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private static final Set<String> OWNER_ONLY_WRITES = Set.of(
             "/api/stock/adjustments", "/api/license", "/api/backups/restore", "/api/backups/encryption",
-            "/api/shop");
+            "/api/shop", "/api/home");
 
     /** Réservé au propriétaire et à la secrétaire, lecture comprise. */
     private static final Set<String> MANAGER_ONLY = Set.of("/api/reports/daily");

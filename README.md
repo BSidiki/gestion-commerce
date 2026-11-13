@@ -30,6 +30,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Fournisseurs : achats qui entrent en stock, achats à crédit, dettes et paiements | |
 | Inventaire physique : comptage, écarts chiffrés, correction du stock à la validation | |
 | Remise sur le total d'une vente ; devis imprimable, transformable en vente | |
+| Page d'accueil personnalisable : message, photo de la boutique, raccourcis, journée en cours, points à surveiller | |
 
 ## Prérequis
 
@@ -171,6 +172,8 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | GET | `/api/reports/period?from=&to=` | Activité entre deux dates : totaux, journées, meilleurs produits, dépenses par catégorie, ventes par personne |
 | GET | `/api/reports/stock?dormantDays=30` | Valeur du stock, produits sous le seuil, produits en stock sans vente récente |
 | GET | `/api/reports/credits` | Clients qui doivent de l'argent, et depuis quand ils n'ont rien payé |
+| GET | `/api/home` | Réglages de la page d'accueil : message, photo, raccourcis |
+| PUT | `/api/home` | Les modifier (propriétaire) |
 | GET | `/api/branding` | Nom, couleur et logo de la boutique, lisibles sans session (écran de connexion) |
 | GET | `/api/shop` | Coordonnées de la boutique, apparence et format du reçu |
 | PUT | `/api/shop` | Les modifier (propriétaire) |
@@ -293,6 +296,20 @@ Page **Tableau de bord**, ouverte au propriétaire et à la secrétaire (tous le
   dernier paiement (ou depuis leur premier crédit s'ils n'ont jamais payé). Au-delà de 30 jours : « À relancer ».
 - **Exporter pour Excel** : les journées de la période dans un fichier CSV.
 
+### Page d'accueil
+
+C'est l'écran sur lequel on arrive en ouvrant l'application. La caisse est désormais à l'adresse `/caisse`.
+
+- **Bandeau** aux couleurs de la boutique : logo, nom, « Bonjour » suivi du prénom, date du jour, et les ventes
+  de la journée (montant, nombre, part à crédit).
+- **Raccourcis** en tuiles ; la première, mise en avant, est le geste le plus fréquent.
+- **À surveiller** : caisse non ouverte, produits sous le seuil, devis en attente, licence proche de sa fin ; et,
+  pour le propriétaire et la secrétaire, crédits clients sans paiement depuis 30 jours et dettes fournisseurs.
+- **Les 7 derniers jours** (propriétaire et secrétaire) : ventes par jour, total et marge brute.
+- **Personnalisation** (page Boutique, propriétaire) : un message d'accueil, une photo de couverture — réduite à
+  1 600 points de large avant l'envoi — et le choix des raccourcis. Le vendeur ne voit que les raccourcis qu'il
+  peut ouvrir. La couleur, le logo et le nom viennent des réglages d'apparence.
+
 ### Apparence
 
 L'application se met aux couleurs de la boutique. Deux niveaux de réglage :
@@ -384,6 +401,7 @@ frontend/src/app/
 ├── features/stockcount/  inventaire physique
 ├── features/suppliers/   fournisseurs, fiche, saisie d'un achat
 ├── features/reports/     tableau de bord
+├── features/home/        page d'accueil
 ├── features/shop/        coordonnées de la boutique, format du reçu
 ├── features/customers/   clients, compte client, remboursements
 ├── features/cash/        dépenses, ouverture et clôture de caisse

@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.gestioncommerce.shop.HomeService.HomeSettings;
 import com.gestioncommerce.shop.ShopService.Branding;
 import com.gestioncommerce.shop.ShopService.ShopSettings;
 
@@ -12,9 +13,23 @@ import com.gestioncommerce.shop.ShopService.ShopSettings;
 public class ShopController {
 
     private final ShopService shop;
+    private final HomeService home;
 
-    public ShopController(ShopService shop) {
+    public ShopController(ShopService shop, HomeService home) {
         this.shop = shop;
+        this.home = home;
+    }
+
+    /** Réglages de la page d'accueil, lus par tous les comptes. */
+    @GetMapping("/api/home")
+    HomeSettings home() {
+        return home.get();
+    }
+
+    /** Réservé au propriétaire (voir AuthInterceptor). */
+    @PutMapping("/api/home")
+    HomeSettings updateHome(@RequestBody HomeSettings request) {
+        return home.update(request);
     }
 
     /** Lu par tous les comptes : la caisse en a besoin pour imprimer le reçu. */
