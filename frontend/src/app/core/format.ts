@@ -87,6 +87,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   PRODUIT_DESACTIVE: 'Produit désactivé',
   PRODUIT_REACTIVE: 'Produit réactivé',
   CATALOGUE_IMPORTE: 'Catalogue importé',
+  BOUTIQUE_MODIFIEE: 'Boutique modifiée',
   RESTAURATION: 'Sauvegarde restaurée',
 };
 

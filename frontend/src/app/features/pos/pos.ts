@@ -14,6 +14,7 @@ import {
 } from '../../core/api';
 import { AuthState } from '../../core/auth-state';
 import { PAYMENT_LABELS, dateTime, fcfa, newIdempotencyKey, quantity } from '../../core/format';
+import { ReceiptView } from '../sales/receipt-view';
 
 interface CartLine {
   product: ProductSummary;
@@ -43,57 +44,14 @@ function floorPrice(packaging: Packaging): number | null {
 
 @Component({
   selector: 'app-pos',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ReceiptView],
   template: `
     @if (receipt(); as r) {
-      <section class="receipt card">
-        <h1>Reçu n° {{ r.sale.number }}</h1>
-        <p class="muted">{{ date(r.sale.createdAt) }}</p>
-        @if (r.customerName) {
-          <p>Client : {{ r.customerName }}</p>
-        }
-        <table class="table compact">
-          <thead>
-            <tr>
-              <th>Article</th>
-              <th class="num">Qté</th>
-              <th class="num">Prix</th>
-              <th class="num">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of r.sale.items; track $index) {
-              <tr>
-                <td>{{ item.productName }} ({{ item.packagingName }})</td>
-                <td class="num">{{ qty(item.quantity) }}</td>
-                <td class="num">{{ money(item.unitPrice) }}</td>
-                <td class="num">{{ money(item.lineTotal) }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        <dl class="totals">
-          <dt>Total</dt>
-          <dd class="strong">{{ money(r.sale.total) }}</dd>
-          @for (p of r.sale.payments; track $index) {
-            <dt>Payé en {{ paymentLabel(p.method) }}</dt>
-            <dd>{{ money(p.amount) }}</dd>
-          }
-          @if (r.change > 0) {
-            <dt>Monnaie rendue</dt>
-            <dd>{{ money(r.change) }}</dd>
-          }
-          @if (r.sale.credit > 0) {
-            <dt>Reste dû (crédit)</dt>
-            <dd class="strong">{{ money(r.sale.credit) }}</dd>
-          }
-        </dl>
-        <p class="muted small">Reçu interne. Ce document ne tient pas lieu de facture.</p>
-        <div class="actions no-print">
-          <button class="button primary" (click)="newSale()">Nouvelle vente</button>
-          <button class="button" (click)="print()">Imprimer le reçu</button>
-        </div>
-      </section>
+      <app-receipt [sale]="r.sale" [customerName]="r.customerName" [change]="r.change" />
+      <div class="actions receipt-actions no-print">
+        <button class="button primary" (click)="newSale()">Nouvelle vente</button>
+        <button class="button" (click)="print()">Imprimer le reçu</button>
+      </div>
     } @else {
       <div class="pos">
         <section>

@@ -9,7 +9,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 
 | Fait | À venir |
 | --- | --- |
-| Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | Impression sur imprimante thermique |
+| Socle Spring Boot + SQLite (WAL, `synchronous=FULL`) + migrations Flyway | |
 | Catégories, produits, conditionnements, prix par niveau, codes-barres | |
 | Réceptions, ajustements motivés, journal des mouvements | |
 | Ventes atomiques, paiements, crédits clients, remboursements, annulation, rapport du jour | |
@@ -24,6 +24,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Comptes propriétaire, secrétaire et vendeur, droits par rôle, journal des opérations sensibles | |
 | Modification d'un produit (nom, seuil, prix, codes-barres, nouveaux conditionnements) et désactivation | |
 | Import du catalogue depuis Excel : copier-coller ou fichier CSV, vérification avant import | |
+| Reçu imprimable sur imprimante thermique (58 ou 80 mm) ou A4, en-tête de la boutique, réimpression | |
 
 ## Prérequis
 
@@ -78,7 +79,7 @@ Ensuite, toute l'API exige une session (cookie `GC_SESSION`, HttpOnly, SameSite=
 | Voir les coûts, les marges et le résultat du jour | non | oui | oui |
 | Vendre sous le prix plancher | non | non | oui, inscrit au journal |
 | Annuler une vente, corriger le stock | non | non | oui, inscrit au journal |
-| Voir le journal ; gérer les comptes et la licence ; restaurer ou protéger les sauvegardes | non | non | oui |
+| Voir le journal ; gérer les comptes, la licence et les coordonnées de la boutique ; restaurer ou protéger les sauvegardes | non | non | oui |
 
 Les mots de passe ne sont pas enregistrés : seulement leur empreinte PBKDF2-HMAC-SHA256 (210 000 itérations) et un
 sel par compte. Cinq essais ratés bloquent la connexion à ce compte pendant une minute.
@@ -143,6 +144,8 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | GET, POST | `/api/users` | Lister, créer les comptes (propriétaire) |
 | POST | `/api/users/{id}/password`, `/api/users/{id}/active` | Redonner un mot de passe, désactiver ou réactiver un compte (propriétaire) |
 | GET | `/api/audit` | Journal des opérations sensibles (propriétaire) |
+| GET | `/api/shop` | Coordonnées de la boutique et format du reçu |
+| PUT | `/api/shop` | Les modifier (propriétaire) |
 | GET | `/api/license` | État de la licence et code d'installation |
 | POST | `/api/license` | Enregistrer une licence |
 | GET | `/api/backups` | État des sauvegardes, emplacements proposés, historique |
@@ -199,6 +202,19 @@ du tableur, titres compris, et on les colle ; un fichier CSV convient aussi. Un 
 - Le stock initial entre comme une réception, valorisée au coût d'achat indiqué. Les catégories absentes sont créées.
 - Au plus 2 000 lignes par import. Un classeur `.xlsx` ne se lit pas directement : copier-coller ou enregistrer en CSV.
 
+### Impression du reçu
+
+Le reçu s'imprime par la fenêtre d'impression du navigateur, sur l'imprimante installée dans Windows :
+aucun pilote particulier n'est demandé au logiciel.
+
+- Page **Boutique** (propriétaire) : nom, adresse, téléphone, phrase de fin de reçu, et format du papier —
+  rouleau de 80 mm, rouleau de 58 mm, ou feuille A4. Un aperçu se met à jour pendant la saisie, et
+  « Imprimer un essai » sort un reçu d'exemple.
+- En 80 mm le reçu occupe 72 mm de large, en 58 mm il en occupe 48 : la largeur imprimable habituelle de ces rouleaux.
+- À la première impression, dans la fenêtre d'impression : choisir l'imprimante, mettre les marges sur
+  « Aucune » et décocher « En-têtes et pieds de page ». Le navigateur retient ces choix.
+- Un reçu se réimprime depuis **Ventes du jour**, bouton « Reçu ». Celui d'une vente annulée porte la mention « VENTE ANNULÉE ».
+
 ### Règles d'une vente
 
 - La vente, ses lignes, ses paiements, son crédit et ses sorties de stock sont écrits ensemble, ou pas du tout.
@@ -244,7 +260,8 @@ backend/src/main/java/com/gestioncommerce/
 ├── sales/                ventes, paiements, annulation, rapport du jour
 ├── cash/                 dépenses, ouverture et clôture de caisse
 ├── backup/               sauvegarde, restauration, historique
-└── license/              essai, vérification des licences, lecture seule
+├── license/              essai, vérification des licences, lecture seule
+└── shop/                 coordonnées de la boutique, format du reçu
 backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
 
 installer/                script de construction, script Inno Setup, notice
@@ -253,7 +270,8 @@ tools/                    outil de l'éditeur pour créer la clé et émettre le
 frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
 ├── features/pos/         écran de caisse et reçu
-├── features/sales/       ventes du jour, résumé, annulation
+├── features/sales/       ventes du jour, résumé, annulation, reçu
+├── features/shop/        coordonnées de la boutique, format du reçu
 ├── features/customers/   clients, compte client, remboursements
 ├── features/cash/        dépenses, ouverture et clôture de caisse
 ├── features/backup/      sauvegarde et restauration

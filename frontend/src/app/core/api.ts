@@ -190,6 +190,15 @@ export interface Sale {
   payments: PaymentLine[];
 }
 
+/** Coordonnées imprimées en tête du reçu, et format du papier. */
+export interface ShopSettings {
+  name: string;
+  address: string;
+  phone: string;
+  receiptFooter: string;
+  receiptWidth: '58' | '80' | 'A4';
+}
+
 export interface DailyReport {
   date: string;
   saleCount: number;
@@ -501,6 +510,14 @@ export class Api {
 
   audit(): Observable<AuditEntry[]> {
     return this.http.get<AuditEntry[]>('/api/audit');
+  }
+
+  shop(): Observable<ShopSettings> {
+    return this.http.get<ShopSettings>('/api/shop');
+  }
+
+  updateShop(settings: ShopSettings): Observable<ShopSettings> {
+    return this.http.put<ShopSettings>('/api/shop', settings);
   }
 
   licenseStatus(): Observable<LicenseStatus> {
