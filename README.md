@@ -84,8 +84,12 @@ Ensuite, toute l'API exige une session (cookie `GC_SESSION`, HttpOnly, SameSite=
 Les mots de passe ne sont pas enregistrés : seulement leur empreinte PBKDF2-HMAC-SHA256 (210 000 itérations) et un
 sel par compte. Cinq essais ratés bloquent la connexion à ce compte pendant une minute.
 
-Les coûts d'achat sont masqués au vendeur dans l'interface, mais l'API des produits les renvoie encore à toute
-personne connectée : ce n'est pas une barrière de sécurité.
+Les coûts d'achat sont masqués au vendeur par le service lui-même : pour son compte, le coût moyen des produits
+et le coût des mouvements de stock ne figurent pas dans les réponses. Il saisit toujours le coût d'une réception
+qu'il enregistre.
+
+Le propriétaire change le rôle d'un compte depuis la page Utilisateurs ; l'effet est immédiat, sans reconnexion.
+Il doit toujours rester un propriétaire actif.
 
 ### Licences
 
@@ -143,6 +147,7 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/auth/password` | Changer son propre mot de passe |
 | GET, POST | `/api/users` | Lister, créer les comptes (propriétaire) |
 | POST | `/api/users/{id}/password`, `/api/users/{id}/active` | Redonner un mot de passe, désactiver ou réactiver un compte (propriétaire) |
+| POST | `/api/users/{id}/role` | Changer le rôle d'un compte (propriétaire) |
 | GET | `/api/audit` | Journal des opérations sensibles (propriétaire) |
 | GET | `/api/shop` | Coordonnées de la boutique et format du reçu |
 | PUT | `/api/shop` | Les modifier (propriétaire) |

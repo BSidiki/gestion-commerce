@@ -31,7 +31,8 @@ export interface ProductSummary {
   baseUnit: string;
   stockQty: number;
   /** Coût moyen pondéré par unité de base, en millièmes de franc. */
-  avgCostMilli: number;
+  /** Absent (null) pour un compte qui ne voit pas les coûts d'achat. */
+  avgCostMilli: number | null;
   alertThreshold: number;
   lowStock: boolean;
   /** Faux pour un produit désactivé : absent de la caisse et des listes. */
@@ -90,7 +91,8 @@ export interface Movement {
 export interface StockLevel {
   productId: string;
   stockQty: number;
-  avgCostMilli: number;
+  /** Absent (null) pour un compte qui ne voit pas les coûts d'achat. */
+  avgCostMilli: number | null;
 }
 
 export interface PackagingRequest {
@@ -502,6 +504,10 @@ export class Api {
 
   resetUserPassword(userId: string, password: string): Observable<void> {
     return this.http.post<void>(`/api/users/${userId}/password`, { password });
+  }
+
+  changeUserRole(userId: string, role: Role): Observable<UserAccount> {
+    return this.http.post<UserAccount>(`/api/users/${userId}/role`, { role });
   }
 
   setUserActive(userId: string, active: boolean): Observable<void> {

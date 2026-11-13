@@ -31,13 +31,13 @@ public class StockController {
     @PostMapping("/stock/receptions")
     @ResponseStatus(HttpStatus.CREATED)
     StockLevel receive(@Valid @RequestBody ReceptionRequest request) {
-        return stock.receive(request);
+        return stock.receive(request).forCurrentUser();
     }
 
     @PostMapping("/stock/adjustments")
     @ResponseStatus(HttpStatus.CREATED)
     StockLevel adjust(@Valid @RequestBody AdjustmentRequest request) {
-        return stock.adjust(request);
+        return stock.adjust(request).forCurrentUser();
     }
 
     @GetMapping("/products/{id}/movements")

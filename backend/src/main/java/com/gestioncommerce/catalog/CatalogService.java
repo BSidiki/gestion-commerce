@@ -25,6 +25,7 @@ import com.gestioncommerce.catalog.CatalogDtos.ProductRequest;
 import com.gestioncommerce.catalog.CatalogDtos.ProductSummary;
 import com.gestioncommerce.catalog.CatalogDtos.ProductUpdateRequest;
 import com.gestioncommerce.common.BusinessException;
+import com.gestioncommerce.common.CurrentUser;
 import com.gestioncommerce.common.NotFoundException;
 import com.gestioncommerce.common.Timestamps;
 
@@ -420,7 +421,8 @@ public class CatalogService {
         long stock = rs.getLong("stock_qty");
         long threshold = rs.getLong("alert_threshold");
         return new ProductSummary(rs.getString("id"), rs.getString("name"), rs.getString("category_id"),
-                rs.getString("base_unit"), stock, rs.getLong("avg_cost_milli"), threshold, stock <= threshold,
+                rs.getString("base_unit"), stock,
+                CurrentUser.seesCosts() ? (Long) rs.getLong("avg_cost_milli") : null, threshold, stock <= threshold,
                 rs.getInt("active") == 1);
     }
 

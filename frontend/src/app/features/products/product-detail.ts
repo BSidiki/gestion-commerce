@@ -66,7 +66,7 @@ type Panel = 'none' | 'reception' | 'adjustment';
         @if (auth.isManager()) {
           <div class="stat">
             <span class="label">Coût moyen par {{ d.product.baseUnit }}</span>
-            <span class="value">{{ cost(d.product.avgCostMilli) }}</span>
+            <span class="value">{{ cost(d.product.avgCostMilli ?? 0) }}</span>
           </div>
           <div class="stat">
             <span class="label">Valeur du stock</span>
@@ -241,7 +241,7 @@ export class ProductDetailPage {
 
   protected readonly stockValue = computed(() => {
     const d = this.detail();
-    return d ? costFromMilli(Math.max(d.product.stockQty, 0) * d.product.avgCostMilli) : '';
+    return d ? costFromMilli(Math.max(d.product.stockQty, 0) * (d.product.avgCostMilli ?? 0)) : '';
   });
 
   protected readonly qty = quantity;

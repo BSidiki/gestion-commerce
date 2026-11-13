@@ -47,6 +47,9 @@ public class AuthController {
     public record ResetPasswordRequest(@NotBlank String password) {
     }
 
+    public record RoleRequest(@NotBlank String role) {
+    }
+
     public record ActiveRequest(boolean active) {
     }
 
@@ -120,6 +123,11 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void resetPassword(@PathVariable String id, @Valid @RequestBody ResetPasswordRequest request) {
         auth.resetPassword(id, request.password());
+    }
+
+    @PostMapping("/users/{id}/role")
+    UserView changeRole(@PathVariable String id, @Valid @RequestBody RoleRequest request) {
+        return auth.changeRole(id, request.role());
     }
 
     @PostMapping("/users/{id}/active")
