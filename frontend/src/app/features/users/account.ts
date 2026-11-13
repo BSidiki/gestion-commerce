@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { Api, errorMessage } from '../../core/api';
+import { Appearance, TextScale, Theme } from '../../core/appearance';
 import { AuthState } from '../../core/auth-state';
 import { ROLE_LABELS } from '../../core/format';
 
@@ -30,6 +31,45 @@ import { ROLE_LABELS } from '../../core/format';
       <p class="alert success" role="status">{{ message }}</p>
     }
 
+    <section class="card form">
+      <h2>Affichage sur ce poste</h2>
+      <p class="muted">Ces deux réglages ne changent que cet ordinateur, pas celui de vos collègues.</p>
+      <div>
+        <p class="field-title" id="theme-title">Thème</p>
+        <div class="choices" role="radiogroup" aria-labelledby="theme-title">
+          @for (option of themes; track option.id) {
+            <label class="choice">
+              <input
+                type="radio"
+                name="theme"
+                [value]="option.id"
+                [checked]="look.theme() === option.id"
+                (change)="look.setTheme(option.id)"
+              />
+              {{ option.label }}
+            </label>
+          }
+        </div>
+      </div>
+      <div>
+        <p class="field-title" id="scale-title">Taille du texte</p>
+        <div class="choices" role="radiogroup" aria-labelledby="scale-title">
+          @for (option of scales; track option.id) {
+            <label class="choice">
+              <input
+                type="radio"
+                name="scale"
+                [value]="option.id"
+                [checked]="look.scale() === option.id"
+                (change)="look.setScale(option.id)"
+              />
+              {{ option.label }}
+            </label>
+          }
+        </div>
+      </div>
+    </section>
+
     <form class="card form" (ngSubmit)="change()">
       <h2>Changer mon mot de passe</h2>
       <div class="grid">
@@ -55,6 +95,18 @@ import { ROLE_LABELS } from '../../core/format';
 export class AccountPage {
   private readonly api = inject(Api);
   protected readonly auth = inject(AuthState);
+  protected readonly look = inject(Appearance);
+
+  protected readonly themes: { id: Theme; label: string }[] = [
+    { id: 'auto', label: 'Comme Windows' },
+    { id: 'clair', label: 'Clair' },
+    { id: 'sombre', label: 'Sombre' },
+  ];
+  protected readonly scales: { id: TextScale; label: string }[] = [
+    { id: 'normale', label: 'Normale' },
+    { id: 'grande', label: 'Grande' },
+    { id: 'tres-grande', label: 'Très grande' },
+  ];
 
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);

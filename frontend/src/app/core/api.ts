@@ -199,6 +199,17 @@ export interface ShopSettings {
   phone: string;
   receiptFooter: string;
   receiptWidth: '58' | '80' | 'A4';
+  /** Couleur de l'application, parmi celles proposées. */
+  accentColor: string;
+  /** Logo de la boutique, en image encodée (data:image/…), ou chaîne vide. */
+  logo: string;
+}
+
+/** Ce que l'écran de connexion connaît de la boutique avant toute session. */
+export interface Branding {
+  name: string;
+  accentColor: string;
+  logo: string;
 }
 
 export interface DailyReport {
@@ -516,6 +527,10 @@ export class Api {
 
   audit(): Observable<AuditEntry[]> {
     return this.http.get<AuditEntry[]>('/api/audit');
+  }
+
+  branding(): Observable<Branding> {
+    return this.http.get<Branding>('/api/branding');
   }
 
   shop(): Observable<ShopSettings> {

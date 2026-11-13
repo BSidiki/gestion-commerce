@@ -49,7 +49,9 @@ class ShopIntegrationTest {
         mvc.perform(get("/api/shop"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value(""))
-                .andExpect(jsonPath("$.receiptWidth").value("80"));
+                .andExpect(jsonPath("$.receiptWidth").value("80"))
+                .andExpect(jsonPath("$.accentColor").value("lagune"))
+                .andExpect(jsonPath("$.logo").value(""));
 
         Cookie owner = session(send(post("/api/auth/setup"), null,
                 Map.of("username", "awa", "displayName", "Awa", "password", "secret-awa"))
@@ -87,6 +89,30 @@ class ShopIntegrationTest {
         mvc.perform(get("/api/shop").cookie(owner))
                 .andExpect(jsonPath("$.name").value("Boutique Wend-Kuuni"))
                 .andExpect(jsonPath("$.receiptWidth").value("58"));
+
+        // --- Apparence : une couleur de la liste, un logo en image ; rien d'autre ---
+        String logo = "data:image/png;base64,iVBORw0KGgo=";
+        Map<String, String> appearance = Map.of("name", "Boutique Wend-Kuuni", "receiptWidth", "58",
+                "accentColor", "bissap", "logo", logo);
+        send(put("/api/shop"), owner, appearance)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accentColor").value("bissap"))
+                .andExpect(jsonPath("$.logo").value(logo));
+        send(put("/api/shop"), owner, Map.of("name", "X", "accentColor", "#ff0000"))
+                .andExpect(status().isUnprocessableEntity());
+        send(put("/api/shop"), owner, Map.of("name", "X", "logo", "data:image/svg+xml;base64,PHN2Zz4="))
+                .andExpect(status().isUnprocessableEntity());
+        send(put("/api/shop"), owner, Map.of("name", "X", "logo", logo + "A".repeat(400_000)))
+                .andExpect(status().isUnprocessableEntity());
+
+        // L'écran de connexion lit le nom, la couleur et le logo sans session, et rien de plus.
+        mvc.perform(get("/api/branding"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Boutique Wend-Kuuni"))
+                .andExpect(jsonPath("$.accentColor").value("bissap"))
+                .andExpect(jsonPath("$.logo").value(logo))
+                .andExpect(jsonPath("$.phone").doesNotExist());
+        mvc.perform(get("/api/shop")).andExpect(status().isUnauthorized());
 
         // --- Le changement est inscrit au journal ---
         mvc.perform(get("/api/audit").cookie(owner))
