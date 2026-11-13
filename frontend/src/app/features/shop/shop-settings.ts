@@ -11,6 +11,7 @@ const SAMPLE: Sale = {
   id: 'exemple',
   number: 128,
   customerId: null,
+  discount: 0,
   total: 7700,
   paid: 5000,
   credit: 2700,

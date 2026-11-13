@@ -88,6 +88,18 @@ export const routes: Routes = [
     loadComponent: () => import('./features/stockcount/stock-count').then(m => m.StockCountPage),
   },
   {
+    path: 'devis',
+    title: 'Devis',
+    canActivate: [signedIn],
+    loadComponent: () => import('./features/quotes/quote-list').then(m => m.QuoteList),
+  },
+  {
+    path: 'devis/:id',
+    title: 'Devis',
+    canActivate: [signedIn],
+    loadComponent: () => import('./features/quotes/quote-detail').then(m => m.QuoteDetail),
+  },
+  {
     path: 'tableau-de-bord',
     title: 'Tableau de bord',
     canActivate: [signedIn, managerOnly],
