@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { Api, errorMessage } from '../../core/api';
+import { Appearance } from '../../core/appearance';
 import { AuthState } from '../../core/auth-state';
 import { LicenseState } from '../../core/license-state';
 
@@ -11,6 +12,16 @@ import { LicenseState } from '../../core/license-state';
   imports: [FormsModule],
   template: `
     <form class="card form sign-in" (ngSubmit)="login()">
+      <div class="sign-in-brand">
+        <span class="brand-mark" [class.has-logo]="look.logo()">
+          @if (look.logo(); as logo) {
+            <img [src]="logo" alt="" />
+          } @else {
+            {{ look.displayName().trim().charAt(0).toUpperCase() }}
+          }
+        </span>
+        <span>{{ look.displayName() }}</span>
+      </div>
       <h1>Connexion</h1>
       @if (error(); as message) {
         <p class="alert error" role="alert">{{ message }}</p>
@@ -35,6 +46,7 @@ export class LoginPage {
   private readonly auth = inject(AuthState);
   private readonly license = inject(LicenseState);
   private readonly router = inject(Router);
+  protected readonly look = inject(Appearance);
 
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);

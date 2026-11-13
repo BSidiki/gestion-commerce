@@ -25,6 +25,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Modification d'un produit (nom, seuil, prix, codes-barres, nouveaux conditionnements) et désactivation | |
 | Import du catalogue depuis Excel : copier-coller ou fichier CSV, vérification avant import | |
 | Reçu imprimable sur imprimante thermique (58 ou 80 mm) ou A4, en-tête de la boutique, réimpression | |
+| Apparence personnalisable : couleur, logo et nom de la boutique ; thème clair ou sombre et taille du texte par poste | |
 
 ## Prérequis
 
@@ -149,7 +150,8 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/users/{id}/password`, `/api/users/{id}/active` | Redonner un mot de passe, désactiver ou réactiver un compte (propriétaire) |
 | POST | `/api/users/{id}/role` | Changer le rôle d'un compte (propriétaire) |
 | GET | `/api/audit` | Journal des opérations sensibles (propriétaire) |
-| GET | `/api/shop` | Coordonnées de la boutique et format du reçu |
+| GET | `/api/branding` | Nom, couleur et logo de la boutique, lisibles sans session (écran de connexion) |
+| GET | `/api/shop` | Coordonnées de la boutique, apparence et format du reçu |
 | PUT | `/api/shop` | Les modifier (propriétaire) |
 | GET | `/api/license` | État de la licence et code d'installation |
 | POST | `/api/license` | Enregistrer une licence |
@@ -206,6 +208,20 @@ du tableur, titres compris, et on les colle ; un fichier CSV convient aussi. Un 
   relancer le même import ne crée pas de doublon, et ne modifie aucun produit existant.
 - Le stock initial entre comme une réception, valorisée au coût d'achat indiqué. Les catégories absentes sont créées.
 - Au plus 2 000 lignes par import. Un classeur `.xlsx` ne se lit pas directement : copier-coller ou enregistrer en CSV.
+
+### Apparence
+
+L'application se met aux couleurs de la boutique. Deux niveaux de réglage :
+
+- **Pour toute la boutique** (page Boutique, propriétaire) : le nom, le logo et la couleur, à choisir parmi neuf
+  teintes. Ils s'appliquent à tous les postes, à l'écran de connexion et au reçu. La couleur s'essaie à l'écran
+  avant d'être enregistrée. Le logo est réduit à 320 points de côté avant l'envoi (PNG, JPEG ou WebP).
+- **Pour le poste** (page Mon compte, tout le monde) : thème clair, sombre ou « comme Windows », et taille du
+  texte (normale, grande, très grande). Ces deux réglages restent dans le navigateur du poste.
+
+Les teintes sont définies dans `frontend/src/styles.css` (`data-accent`) et nommées dans
+`frontend/src/app/core/appearance.ts` et `ShopService.ACCENTS` : pour en ajouter une, compléter les trois.
+Les polices (Figtree, Bricolage Grotesque) sont embarquées : rien n'est téléchargé à l'exécution.
 
 ### Impression du reçu
 

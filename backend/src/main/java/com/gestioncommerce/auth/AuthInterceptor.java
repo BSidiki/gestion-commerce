@@ -31,7 +31,8 @@ import jakarta.servlet.http.HttpServletResponse;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private static final Set<String> PUBLIC = Set.of(
-            "/api/health", "/api/auth/me", "/api/auth/login", "/api/auth/setup", "/api/auth/logout");
+            "/api/health", "/api/auth/me", "/api/auth/login", "/api/auth/setup", "/api/auth/logout",
+            "/api/branding");
 
     private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
 

@@ -18,6 +18,12 @@ import { ShopState } from '../../core/shop-state';
     .head p {
       margin: 0;
     }
+    .logo {
+      display: block;
+      max-width: 5rem;
+      max-height: 5rem;
+      margin: 0 auto 0.4rem;
+    }
     .shop-name {
       font-size: 1.2rem;
       font-weight: 700;
@@ -65,8 +71,11 @@ import { ShopState } from '../../core/shop-state';
   template: `
     <section class="receipt card" [class.thermal]="width() !== 'A4'" [class.w58]="width() === '58'">
       @if (shop(); as s) {
-        @if (s.name || s.address || s.phone) {
+        @if (s.name || s.address || s.phone || s.logo) {
           <div class="head">
+            @if (s.logo) {
+              <img class="logo" [src]="s.logo" alt="" />
+            }
             @if (s.name) {
               <p class="shop-name">{{ s.name }}</p>
             }
