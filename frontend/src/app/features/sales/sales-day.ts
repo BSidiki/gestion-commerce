@@ -95,7 +95,12 @@ import { ReceiptView } from './receipt-view';
                     </div>
                   }
                 </td>
-                <td class="num">{{ money(sale.total) }}</td>
+                <td class="num">
+                {{ money(sale.total) }}
+                @if (sale.discount > 0) {
+                  <div class="muted small">remise de {{ money(sale.discount) }}</div>
+                }
+              </td>
                 <td>
                   @for (p of sale.payments; track $index) {
                     <div>{{ paymentLabel(p.method) }} : {{ money(p.amount) }}</div>

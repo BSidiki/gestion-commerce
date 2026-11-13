@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Api, PaymentMethod, Purchase, SupplierDetail, errorMessage } from '../../core/api';
+import { AuthState } from '../../core/auth-state';
 import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
 
 /** Un fournisseur : ce qu'on lui doit, le payer, et l'historique de ses livraisons. */
@@ -28,8 +29,8 @@ import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
 
       <div class="stats">
         <div class="stat">
-          <span class="label">Reste à payer</span>
-          <span class="value">{{ money(d.supplier.balance) }}</span>
+          <span class="label">{{ d.supplier.balance < 0 ? 'Avoir chez ce fournisseur' : 'Reste à payer' }}</span>
+          <span class="value">{{ money(abs(d.supplier.balance)) }}</span>
           <span class="muted">{{ d.supplier.phone || 'Pas de téléphone enregistré' }}</span>
         </div>
       </div>
@@ -101,11 +102,14 @@ import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
         </thead>
         <tbody>
           @for (e of d.entries; track $index) {
-            <tr>
+            <tr [class.cancelled]="e.cancelled">
               <td>{{ date(e.createdAt) }}</td>
               <td>
                 @if (e.type === 'ACHAT') {
                   Achat n° {{ e.purchaseNumber }}
+                  @if (e.cancelled) {
+                    <span class="badge warning">Annulé</span>
+                  }
                 } @else {
                   Paiement en {{ methodLabel(e.method) }}
                   @if (e.purchaseNumber) {
@@ -119,7 +123,15 @@ import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
                   <div class="muted small">{{ e.note }}</div>
                 }
               </td>
-              <td class="num">{{ e.type === 'ACHAT' ? money(e.amount) : '' }}</td>
+              <td class="num">
+                @if (e.type === 'ACHAT') {
+                  @if (e.cancelled) {
+                    <s>{{ money(e.amount) }}</s>
+                  } @else {
+                    {{ money(e.amount) }}
+                  }
+                }
+              </td>
               <td class="num">{{ e.type === 'PAIEMENT' ? money(e.amount) : '' }}</td>
               <td class="row-actions">
                 @if (e.type === 'ACHAT' && e.purchaseId) {
@@ -143,6 +155,30 @@ import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
                       }
                     </tbody>
                   </table>
+                  @if (opened()!.status === 'ANNULE') {
+                    <p class="muted">Achat annulé : {{ opened()!.cancelReason }}</p>
+                  } @else if (auth.isOwner()) {
+                    <div class="inline">
+                      <input
+                        name="cancelReason"
+                        [(ngModel)]="cancelReason"
+                        placeholder="Motif de l'annulation"
+                        aria-label="Motif de l'annulation"
+                      />
+                      <button
+                        type="button"
+                        class="button danger"
+                        (click)="cancelPurchase(opened()!)"
+                        [disabled]="saving() || !cancelReason.trim()"
+                      >
+                        Annuler cet achat
+                      </button>
+                    </div>
+                    <p class="muted small">
+                      La marchandise ressort du stock et l'achat ne compte plus dans la dette. Impossible si une
+                      partie a déjà été vendue.
+                    </p>
+                  }
                 </td>
               </tr>
             }
@@ -162,6 +198,7 @@ import { PAYMENT_LABELS, dateTime, fcfa, quantity } from '../../core/format';
 })
 export class SupplierDetailPage {
   private readonly api = inject(Api);
+  protected readonly auth = inject(AuthState);
   private readonly supplierId = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
 
   protected readonly detail = signal<SupplierDetail | null>(null);
@@ -177,6 +214,7 @@ export class SupplierDetailPage {
   protected name = '';
   protected phone = '';
   protected supplierNote = '';
+  protected cancelReason = '';
 
   protected readonly money = fcfa;
   protected readonly qty = quantity;
@@ -227,6 +265,22 @@ export class SupplierDetailPage {
         next: () => this.done('Coordonnées enregistrées.'),
         error: e => this.failed(e),
       });
+  }
+
+  protected abs(value: number): number {
+    return Math.abs(value);
+  }
+
+  protected cancelPurchase(purchase: Purchase): void {
+    this.start();
+    this.api.cancelPurchase(purchase.id, this.cancelReason.trim()).subscribe({
+      next: cancelled => {
+        this.cancelReason = '';
+        this.opened.set(cancelled);
+        this.done(`Achat n° ${cancelled.number} annulé : la marchandise est ressortie du stock.`);
+      },
+      error: e => this.failed(e),
+    });
   }
 
   protected toggle(purchaseId: string): void {

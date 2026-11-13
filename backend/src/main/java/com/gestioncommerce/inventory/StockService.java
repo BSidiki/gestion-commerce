@@ -133,6 +133,32 @@ public class StockService {
                 .orElseThrow(() -> new NotFoundException("Produit introuvable."));
     }
 
+    /**
+     * Défait une réception : la marchandise ressort du stock et le coût moyen est recalculé
+     * comme si elle n'était jamais entrée. Refusé si le stock restant ne suffit pas.
+     *
+     * @param baseQty   quantité à retirer, en unités de base
+     * @param totalCost coût total de la réception d'origine, en francs CFA
+     */
+    @Transactional
+    public StockLevel reverseReception(String productId, long baseQty, long totalCost, String note) {
+        StockLevel current = currentLevel(productId);
+        if (current.stockQty() < baseQty) {
+            throw new BusinessException("Le stock restant ne suffit pas pour défaire cette réception.");
+        }
+        long newStock = current.stockQty() - baseQty;
+        long unitCostMilli = Math.multiplyExact(totalCost, 1000L) / baseQty;
+        long newAvgCost = current.avgCostMilli();
+        if (newStock > 0) {
+            long value = Math.multiplyExact(current.stockQty(), current.avgCostMilli())
+                    - Math.multiplyExact(baseQty, unitCostMilli);
+            newAvgCost = Math.max(0, value / newStock);
+        }
+        insertMovement(productId, "ANNULATION", -baseQty, unitCostMilli, null, note, newStock);
+        updateProduct(productId, newStock, newAvgCost);
+        return new StockLevel(productId, newStock, newAvgCost);
+    }
+
     private void insertMovement(String productId, String type, long quantity, Long unitCostMilli,
             String reason, String note, long stockAfter) {
         jdbc.sql("""

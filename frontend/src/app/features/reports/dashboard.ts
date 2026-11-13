@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
-import { Api, CreditReport, PeriodReport, StockReport, errorMessage } from '../../core/api';
+import { Api, CreditReport, PeriodReport, StockReport, Supplier, errorMessage } from '../../core/api';
 import { day, fcfa, quantity } from '../../core/format';
 
 type Preset = 'jour' | '7j' | '30j' | 'mois' | 'mois-dernier' | 'libre';
@@ -463,6 +463,42 @@ function parse(isoDate: string): Date {
       </section>
     }
 
+    @if (suppliers(); as owed) {
+      <section class="block">
+        <div class="block-head">
+          <h2>Dettes fournisseurs</h2>
+          <a class="button" routerLink="/fournisseurs">Voir les fournisseurs</a>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <span class="label">Reste à payer</span>
+            <span class="value">{{ money(supplierDebt()) }}</span>
+            <span class="muted">{{ owed.length }} fournisseur(s)</span>
+          </div>
+        </div>
+        @if (owed.length) {
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Fournisseur</th>
+                <th>Téléphone</th>
+                <th class="num">Reste à payer</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of owed; track s.id) {
+                <tr>
+                  <td><a [routerLink]="['/fournisseurs', s.id]">{{ s.name }}</a></td>
+                  <td>{{ s.phone || '—' }}</td>
+                  <td class="num">{{ money(s.balance) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </section>
+    }
+
     @if (credits(); as c) {
       <section class="block">
         <div class="block-head">
@@ -514,6 +550,9 @@ export class Dashboard {
   protected readonly report = signal<PeriodReport | null>(null);
   protected readonly stock = signal<StockReport | null>(null);
   protected readonly credits = signal<CreditReport | null>(null);
+  /** Les fournisseurs à qui la boutique doit de l'argent, le plus gros montant en premier. */
+  protected readonly suppliers = signal<Supplier[] | null>(null);
+  protected readonly supplierDebt = computed(() => (this.suppliers() ?? []).reduce((sum, s) => sum + s.balance, 0));
   protected readonly error = signal<string | null>(null);
   protected readonly dormantDays = signal(30);
 
@@ -577,6 +616,11 @@ export class Dashboard {
   constructor() {
     this.choose('30j');
     this.loadStock();
+    this.api.suppliers().subscribe({
+      next: suppliers =>
+        this.suppliers.set(suppliers.filter(s => s.balance > 0).sort((a, b) => b.balance - a.balance)),
+      error: e => this.error.set(errorMessage(e)),
+    });
     this.api.creditReport().subscribe({
       next: credits => this.credits.set(credits),
       error: e => this.error.set(errorMessage(e)),

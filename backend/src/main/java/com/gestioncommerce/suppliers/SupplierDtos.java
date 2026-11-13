@@ -19,7 +19,10 @@ public final class SupplierDtos {
     public record SupplierRequest(@NotBlank String name, String phone, String note) {
     }
 
-    /** @param balance ce que la boutique doit encore à ce fournisseur, en francs CFA */
+    /**
+     * @param balance ce que la boutique doit encore à ce fournisseur, en francs CFA ;
+     *                négatif s'il a été payé pour un achat annulé depuis : c'est alors lui qui doit
+     */
     public record SupplierView(String id, String name, String phone, String note, long balance) {
     }
 
@@ -31,9 +34,10 @@ public final class SupplierDtos {
      * @param purchaseId     l'achat concerné : toujours pour un ACHAT, parfois pour un PAIEMENT
      * @param method         moyen de paiement, pour un PAIEMENT
      * @param fromCashDrawer vrai si le paiement est sorti du tiroir de la caisse
+     * @param cancelled      vrai pour un ACHAT annulé : il ne compte plus dans la dette
      */
     public record SupplierEntry(String type, long amount, String purchaseId, Long purchaseNumber,
-            PaymentMethod method, boolean fromCashDrawer, String note, String createdAt) {
+            PaymentMethod method, boolean fromCashDrawer, String note, String createdAt, boolean cancelled) {
     }
 
     public record SupplierDetail(SupplierView supplier, List<SupplierEntry> entries) {
@@ -65,9 +69,16 @@ public final class SupplierDtos {
             long quantity, long totalCost) {
     }
 
-    /** @param paid total des paiements rattachés à cet achat */
+    /**
+     * @param paid   total des paiements rattachés à cet achat
+     * @param status VALIDE ou ANNULE
+     */
     public record PurchaseView(String id, long number, String supplierId, String supplierName, long total,
-            long paid, String note, String businessDate, String createdAt, List<PurchaseItemView> items) {
+            long paid, String note, String businessDate, String createdAt, String status, String cancelReason,
+            List<PurchaseItemView> items) {
+    }
+
+    public record PurchaseCancelRequest(@NotBlank String reason) {
     }
 
     public record SupplierPaymentRequest(@Positive long amount, @NotNull PaymentMethod method,
