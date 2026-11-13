@@ -81,7 +81,7 @@ import { costFromMilli, quantity } from '../../core/format';
               <td class="num">{{ qty(p.stockQty) }} {{ p.baseUnit }}</td>
               <td class="num">{{ qty(p.alertThreshold) }}</td>
               @if (auth.isManager()) {
-                <td class="num">{{ cost(p.avgCostMilli) }}</td>
+                <td class="num">{{ cost(p.avgCostMilli ?? 0) }}</td>
                 <td class="num">{{ stockValue(p) }}</td>
               }
             </tr>
@@ -120,7 +120,7 @@ export class ProductList {
   });
 
   protected readonly totalValue = computed(() =>
-    costFromMilli(this.visible().reduce((sum, p) => sum + Math.max(p.stockQty, 0) * p.avgCostMilli, 0)),
+    costFromMilli(this.visible().reduce((sum, p) => sum + Math.max(p.stockQty, 0) * (p.avgCostMilli ?? 0), 0)),
   );
 
   protected readonly qty = quantity;
@@ -149,6 +149,6 @@ export class ProductList {
   }
 
   protected stockValue(p: ProductSummary): string {
-    return costFromMilli(Math.max(p.stockQty, 0) * p.avgCostMilli);
+    return costFromMilli(Math.max(p.stockQty, 0) * (p.avgCostMilli ?? 0));
   }
 }

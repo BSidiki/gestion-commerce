@@ -217,6 +217,29 @@ public class AuthService {
     }
 
     @Transactional
+    /** Change le rôle d'un compte. Il doit toujours rester un propriétaire actif. */
+    @Transactional
+    public UserView changeRole(String userId, String role) {
+        if (!CurrentUser.isKnownRole(role)) {
+            throw new BusinessException("Rôle inconnu.");
+        }
+        String username = usernameOf(userId);
+        String previous = roleOf(userId);
+        if (!previous.equals(role)) {
+            boolean lastOwner = CurrentUser.OWNER.equals(previous) && jdbc.sql("""
+                    SELECT COUNT(*) FROM app_user
+                    WHERE role = 'PROPRIETAIRE' AND active = 1 AND id <> ?
+                    """)
+                    .param(userId).query(Long.class).single() == 0;
+            if (lastOwner) {
+                throw new BusinessException("Il doit rester un propriétaire : nommez-en un autre d'abord.");
+            }
+            jdbc.sql("UPDATE app_user SET role = ? WHERE id = ?").params(role, userId).update();
+            audit.log("ROLE_CHANGE", "Compte « " + username + " » : " + previous + " → " + role);
+        }
+        return listUsers().stream().filter(u -> u.id().equals(userId)).findFirst().orElseThrow();
+    }
+
     public void setActive(String userId, boolean active) {
         String username = usernameOf(userId);
         if (!active) {

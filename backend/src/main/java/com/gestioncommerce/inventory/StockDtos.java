@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 
+import com.gestioncommerce.common.CurrentUser;
+
 public final class StockDtos {
 
     private StockDtos() {
@@ -55,6 +57,12 @@ public final class StockDtos {
             String createdAt) {
     }
 
-    public record StockLevel(String productId, long stockQty, long avgCostMilli) {
+    /** @param avgCostMilli coût moyen ; null dans une réponse à un compte qui ne voit pas les coûts */
+    public record StockLevel(String productId, long stockQty, Long avgCostMilli) {
+
+        /** Le même niveau de stock, sans le coût si la personne connectée ne doit pas le voir. */
+        public StockLevel forCurrentUser() {
+            return CurrentUser.seesCosts() ? this : new StockLevel(productId, stockQty, null);
+        }
     }
 }

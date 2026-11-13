@@ -49,6 +49,15 @@ public final class CurrentUser {
         return user != null && user.isOwner();
     }
 
+    /**
+     * Les coûts d'achat ne sont montrés qu'au propriétaire et à la secrétaire
+     * (et tant qu'aucun compte n'existe : la boutique n'est pas encore partagée).
+     */
+    public static boolean seesCosts() {
+        User user = CURRENT.get();
+        return user == null || user.isManager();
+    }
+
     /** Nom d'utilisateur à inscrire sur une opération, ou null si personne n'est connecté. */
     public static String username() {
         User user = CURRENT.get();

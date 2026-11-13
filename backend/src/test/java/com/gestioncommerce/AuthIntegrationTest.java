@@ -161,6 +161,25 @@ class AuthIntegrationTest {
         Cookie secretary = sessionOf(login("fatou", "secret-fatou").andExpect(status().isOk()).andReturn());
 
         sale(secretary, packagingId, 1200).andExpect(status().isCreated());
+
+        // Les coûts d'achat : montrés à la secrétaire, masqués au vendeur, jusque dans les réponses du service.
+        mvc.perform(get("/api/products/" + productId).cookie(secretary))
+                .andExpect(jsonPath("$.product.avgCostMilli").value(900_000));
+        mvc.perform(get("/api/products/" + productId + "/movements").cookie(secretary))
+                .andExpect(jsonPath("$[?(@.type == 'RECEPTION')].unitCostMilli").value(900_000));
+        mvc.perform(get("/api/products/" + productId).cookie(seller))
+                .andExpect(jsonPath("$.product.stockQty").isNumber())
+                .andExpect(jsonPath("$.product.avgCostMilli").isEmpty());
+        mvc.perform(get("/api/catalog/sellable").cookie(seller))
+                .andExpect(jsonPath("$[0].product.avgCostMilli").isEmpty());
+        mvc.perform(get("/api/products/" + productId + "/movements").cookie(seller))
+                .andExpect(jsonPath("$[0].unitCostMilli").isEmpty())
+                .andExpect(jsonPath("$[1].unitCostMilli").isEmpty());
+        postJson(seller, "/api/stock/receptions",
+                Map.of("productId", productId, "packagingId", packagingId, "quantity", 10, "totalCost", 9000))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.stockQty").isNumber())
+                .andExpect(jsonPath("$.avgCostMilli").isEmpty());
         postJson(secretary, "/api/products", Map.of("name", "Sucre", "baseUnit", "paquet",
                 "packagings", new Object[] { Map.of("name", "paquet", "factor", 1) }))
                 .andExpect(status().isCreated());
@@ -198,6 +217,22 @@ class AuthIntegrationTest {
                 .andReturn().getResponse().getContentAsString()).at("/user/id").asText();
         postJson(owner, "/api/users/" + ownerId + "/active", Map.of("active", false))
                 .andExpect(status().isUnprocessableEntity());
+
+        // --- Changement de rôle : effet immédiat ; il reste toujours un propriétaire ---
+        postJson(owner, "/api/users/" + ownerId + "/role", Map.of("role", "VENDEUR"))
+                .andExpect(status().isUnprocessableEntity());
+        postJson(owner, "/api/users/" + sellerId + "/role", Map.of("role", "GERANT"))
+                .andExpect(status().isUnprocessableEntity());
+        postJson(seller, "/api/users/" + sellerId + "/role", Map.of("role", "PROPRIETAIRE"))
+                .andExpect(status().isForbidden());
+        postJson(owner, "/api/users/" + sellerId + "/role", Map.of("role", "SECRETAIRE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("SECRETAIRE"));
+        mvc.perform(get("/api/reports/daily").cookie(seller)).andExpect(status().isOk());
+        postJson(owner, "/api/users/" + sellerId + "/role", Map.of("role", "VENDEUR"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/reports/daily").cookie(seller)).andExpect(status().isForbidden());
+
         postJson(owner, "/api/users/" + sellerId + "/active", Map.of("active", false))
                 .andExpect(status().isNoContent());
         mvc.perform(get("/api/catalog/sellable").cookie(seller)).andExpect(status().isUnauthorized());

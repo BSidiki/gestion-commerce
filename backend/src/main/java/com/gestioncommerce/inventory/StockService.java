@@ -104,7 +104,7 @@ public class StockService {
                 .param(productId)
                 .query((rs, i) -> {
                     long unitCost = rs.getLong("unit_cost_milli");
-                    Long unitCostOrNull = rs.wasNull() ? null : unitCost;
+                    Long unitCostOrNull = rs.wasNull() || !CurrentUser.seesCosts() ? null : unitCost;
                     return new MovementView(rs.getString("id"), rs.getString("type"), rs.getLong("quantity"),
                             unitCostOrNull, rs.getString("reason"), rs.getString("note"),
                             rs.getLong("stock_after"), rs.getString("created_at"));

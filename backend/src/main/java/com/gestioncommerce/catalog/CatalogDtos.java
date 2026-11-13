@@ -81,7 +81,8 @@ public final class CatalogDtos {
             String categoryId,
             String baseUnit,
             long stockQty,
-            long avgCostMilli,
+            /** Coût moyen en millièmes de franc ; null pour un compte qui ne voit pas les coûts. */
+            Long avgCostMilli,
             long alertThreshold,
             boolean lowStock,
             boolean active) {

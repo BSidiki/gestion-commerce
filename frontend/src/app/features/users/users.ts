@@ -64,7 +64,22 @@ import { ROLE_LABELS } from '../../core/format';
           <tr [class.cancelled]="!u.active">
             <td>{{ u.displayName }}{{ u.id === auth.user()?.id ? ' (vous)' : '' }}</td>
             <td>{{ u.username }}</td>
-            <td>{{ roleLabel(u.role) }}</td>
+            <td>
+              @if (u.id === auth.user()?.id) {
+                {{ roleLabel(u.role) }}
+              } @else {
+                <select
+                  [ngModel]="u.role"
+                  (ngModelChange)="changeRole(u, $event)"
+                  [disabled]="busy()"
+                  [attr.aria-label]="'Rôle de ' + u.displayName"
+                >
+                  <option value="VENDEUR">Vendeur</option>
+                  <option value="SECRETAIRE">Secrétaire</option>
+                  <option value="PROPRIETAIRE">Propriétaire</option>
+                </select>
+              }
+            </td>
             <td>
               @if (u.active) {
                 Actif
@@ -180,6 +195,21 @@ export class UsersPage {
         this.done(`Nouveau mot de passe enregistré pour ${user.displayName}.`);
       },
       error: e => this.failed(e),
+    });
+  }
+
+  protected changeRole(user: UserAccount, role: Role): void {
+    if (role === user.role) {
+      return;
+    }
+    this.start();
+    this.api.changeUserRole(user.id, role).subscribe({
+      next: () => this.done(`${user.displayName} est désormais ${this.roleLabel(role).toLowerCase()}.`),
+      error: e => {
+        this.failed(e);
+        // La liste est relue pour que le menu revienne au rôle réel.
+        this.reload();
+      },
     });
   }
 
