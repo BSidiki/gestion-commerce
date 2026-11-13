@@ -216,7 +216,6 @@ public class AuthService {
                 + " » réinitialisé au démarrage du logiciel");
     }
 
-    @Transactional
     /** Change le rôle d'un compte. Il doit toujours rester un propriétaire actif. */
     @Transactional
     public UserView changeRole(String userId, String role) {
@@ -240,6 +239,7 @@ public class AuthService {
         return listUsers().stream().filter(u -> u.id().equals(userId)).findFirst().orElseThrow();
     }
 
+    @Transactional
     public void setActive(String userId, boolean active) {
         String username = usernameOf(userId);
         if (!active) {
