@@ -26,6 +26,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Import du catalogue depuis Excel : copier-coller ou fichier CSV, vérification avant import | |
 | Reçu imprimable sur imprimante thermique (58 ou 80 mm) ou A4, en-tête de la boutique, réimpression | |
 | Apparence personnalisable : couleur, logo et nom de la boutique ; thème clair ou sombre et taille du texte par poste | |
+| Tableau de bord : activité par période, produits les plus vendus, stock qui dort, crédits à relancer, export Excel | |
 
 ## Prérequis
 
@@ -150,6 +151,9 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/users/{id}/password`, `/api/users/{id}/active` | Redonner un mot de passe, désactiver ou réactiver un compte (propriétaire) |
 | POST | `/api/users/{id}/role` | Changer le rôle d'un compte (propriétaire) |
 | GET | `/api/audit` | Journal des opérations sensibles (propriétaire) |
+| GET | `/api/reports/period?from=&to=` | Activité entre deux dates : totaux, journées, meilleurs produits, dépenses par catégorie, ventes par personne |
+| GET | `/api/reports/stock?dormantDays=30` | Valeur du stock, produits sous le seuil, produits en stock sans vente récente |
+| GET | `/api/reports/credits` | Clients qui doivent de l'argent, et depuis quand ils n'ont rien payé |
 | GET | `/api/branding` | Nom, couleur et logo de la boutique, lisibles sans session (écran de connexion) |
 | GET | `/api/shop` | Coordonnées de la boutique, apparence et format du reçu |
 | PUT | `/api/shop` | Les modifier (propriétaire) |
@@ -208,6 +212,20 @@ du tableur, titres compris, et on les colle ; un fichier CSV convient aussi. Un 
   relancer le même import ne crée pas de doublon, et ne modifie aucun produit existant.
 - Le stock initial entre comme une réception, valorisée au coût d'achat indiqué. Les catégories absentes sont créées.
 - Au plus 2 000 lignes par import. Un classeur `.xlsx` ne se lit pas directement : copier-coller ou enregistrer en CSV.
+
+### Tableau de bord
+
+Page **Tableau de bord**, ouverte au propriétaire et à la secrétaire (tous les rapports montrent des marges).
+
+- **Période** : aujourd'hui, 7 jours, 30 jours, ce mois, le mois dernier, ou deux dates au choix (un an au plus).
+  Au-delà de deux mois, le graphique regroupe les journées par mois.
+- **Activité** : chiffre d'affaires, marge brute, dépenses, résultat estimé, encaissements, ventes à crédit ;
+  produits les plus vendus ; dépenses par catégorie ; ventes par personne. Les ventes annulées sont exclues.
+- **Stock** : valeur au coût d'achat moyen, produits sous le seuil, et produits en stock qui ne se sont pas
+  vendus depuis 30, 60, 90 ou 180 jours.
+- **Crédits clients** : ce qui reste à encaisser, client par client, avec le nombre de jours écoulés depuis leur
+  dernier paiement (ou depuis leur premier crédit s'ils n'ont jamais payé). Au-delà de 30 jours : « À relancer ».
+- **Exporter pour Excel** : les journées de la période dans un fichier CSV.
 
 ### Apparence
 
@@ -281,6 +299,7 @@ backend/src/main/java/com/gestioncommerce/
 ├── sales/                ventes, paiements, annulation, rapport du jour
 ├── cash/                 dépenses, ouverture et clôture de caisse
 ├── backup/               sauvegarde, restauration, historique
+├── reports/              rapports par période, stock, crédits
 ├── license/              essai, vérification des licences, lecture seule
 └── shop/                 coordonnées de la boutique, format du reçu
 backend/src/main/resources/db/migration/   schéma SQL versionné (Flyway)
@@ -292,6 +311,7 @@ frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
 ├── features/pos/         écran de caisse et reçu
 ├── features/sales/       ventes du jour, résumé, annulation, reçu
+├── features/reports/     tableau de bord
 ├── features/shop/        coordonnées de la boutique, format du reçu
 ├── features/customers/   clients, compte client, remboursements
 ├── features/cash/        dépenses, ouverture et clôture de caisse

@@ -192,6 +192,75 @@ export interface Sale {
   payments: PaymentLine[];
 }
 
+/** Une journée d'une période : seules celles où il s'est passé quelque chose sont renvoyées. */
+export interface ReportDay {
+  date: string;
+  saleCount: number;
+  revenue: number;
+  costOfGoods: number;
+  grossMargin: number;
+  expenses: number;
+}
+
+export interface PeriodReport {
+  from: string;
+  to: string;
+  saleCount: number;
+  revenue: number;
+  costOfGoods: number;
+  grossMargin: number;
+  expenses: number;
+  /** Marge brute moins les dépenses. */
+  estimatedResult: number;
+  cash: number;
+  mobileMoney: number;
+  creditGranted: number;
+  repaymentsReceived: number;
+  days: ReportDay[];
+  /** Quantités en unités de base. */
+  topProducts: {
+    productId: string;
+    name: string;
+    baseUnit: string;
+    quantity: number;
+    revenue: number;
+    grossMargin: number;
+  }[];
+  expensesByCategory: { category: string; amount: number }[];
+  sellers: { username: string | null; displayName: string | null; saleCount: number; revenue: number }[];
+}
+
+export interface StockReport {
+  productCount: number;
+  /** Valeur du stock au coût d'achat moyen. */
+  stockValue: number;
+  lowStockCount: number;
+  dormantDays: number;
+  dormantCount: number;
+  dormantValue: number;
+  dormant: {
+    productId: string;
+    name: string;
+    baseUnit: string;
+    stockQty: number;
+    value: number;
+    lastSoldOn: string | null;
+  }[];
+}
+
+export interface CreditReport {
+  customerCount: number;
+  totalOutstanding: number;
+  customers: {
+    customerId: string;
+    name: string;
+    phone: string | null;
+    balance: number;
+    waitingSince: string | null;
+    daysWaiting: number;
+  }[];
+}
+
 /** Coordonnées imprimées en tête du reçu, et format du papier. */
 export interface ShopSettings {
   name: string;
@@ -527,6 +596,18 @@ export class Api {
 
   audit(): Observable<AuditEntry[]> {
     return this.http.get<AuditEntry[]>('/api/audit');
+  }
+
+  periodReport(from: string, to: string): Observable<PeriodReport> {
+    return this.http.get<PeriodReport>('/api/reports/period', { params: { from, to } });
+  }
+
+  stockReport(dormantDays: number): Observable<StockReport> {
+    return this.http.get<StockReport>('/api/reports/stock', { params: { dormantDays } });
+  }
+
+  creditReport(): Observable<CreditReport> {
+    return this.http.get<CreditReport>('/api/reports/credits');
   }
 
   branding(): Observable<Branding> {

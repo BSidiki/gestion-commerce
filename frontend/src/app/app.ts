@@ -45,6 +45,11 @@ import { LicenseState } from './core/license-state';
             <a routerLink="/clients" routerLinkActive="active"><app-icon name="clients" /> Clients</a>
 
             <p class="group">Gérer</p>
+            @if (auth.isManager()) {
+              <a routerLink="/tableau-de-bord" routerLinkActive="active">
+                <app-icon name="rapports" /> Tableau de bord
+              </a>
+            }
             <a routerLink="/produits" routerLinkActive="active"><app-icon name="produits" /> Produits</a>
             <a routerLink="/depenses" routerLinkActive="active"><app-icon name="depenses" /> Dépenses</a>
             <a routerLink="/cloture" routerLinkActive="active"><app-icon name="cloture" /> Clôture</a>

@@ -76,7 +76,9 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         // Toute écriture sous /api/products/ modifie ou désactive un produit.
         boolean catalogWrite = write && (MANAGER_ONLY_WRITES.contains(path) || path.startsWith("/api/products/"));
-        if (!user.get().isManager() && (MANAGER_ONLY.contains(path) || catalogWrite)) {
+        // Tous les rapports montrent des marges ou des coûts.
+        boolean report = MANAGER_ONLY.contains(path) || path.startsWith("/api/reports/");
+        if (!user.get().isManager() && (report || catalogWrite)) {
             throw new ForbiddenException("Cette opération est réservée au propriétaire et à la secrétaire.");
         }
         return true;

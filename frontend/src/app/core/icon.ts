@@ -17,6 +17,7 @@ const PATHS: Record<string, string> = {
   compte: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0',
   quitter: 'M10 4H5v16h5m4-12 4 4-4 4m4-4H9',
   menu: 'M4 7h16M4 12h16M4 17h16',
+  rapports: 'M4 20V10m5.5 10V4M15 20v-7m5.5 7V8M3 20h18',
 };
 
 @Component({

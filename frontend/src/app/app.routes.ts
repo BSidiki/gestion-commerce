@@ -64,6 +64,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/license/license').then(m => m.LicensePage),
   },
   {
+    path: 'tableau-de-bord',
+    title: 'Tableau de bord',
+    canActivate: [signedIn, managerOnly],
+    loadComponent: () => import('./features/reports/dashboard').then(m => m.Dashboard),
+  },
+  {
     path: 'boutique',
     title: 'Boutique',
     canActivate: [signedIn, ownerOnly],

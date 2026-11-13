@@ -34,6 +34,7 @@ public class SystemController {
             "/produits/{id}/modifier",
             "/catalogue/importer",
             "/boutique",
+            "/tableau-de-bord",
             "/sauvegarde",
             "/licence",
             "/connexion",
