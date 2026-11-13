@@ -82,6 +82,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/suppliers/supplier-detail').then(m => m.SupplierDetailPage),
   },
   {
+    path: 'inventaire',
+    title: 'Inventaire',
+    canActivate: [signedIn, managerOnly],
+    loadComponent: () => import('./features/stockcount/stock-count').then(m => m.StockCountPage),
+  },
+  {
     path: 'tableau-de-bord',
     title: 'Tableau de bord',
     canActivate: [signedIn, managerOnly],

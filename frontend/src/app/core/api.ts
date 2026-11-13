@@ -192,6 +192,37 @@ export interface Sale {
   payments: PaymentLine[];
 }
 
+export interface StockCountSummary {
+  id: string;
+  number: number;
+  label: string | null;
+  status: 'EN_COURS' | 'VALIDE' | 'ABANDONNE';
+  startedAt: string;
+  startedBy: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  lineCount: number;
+  differenceCount: number;
+  /** Valeur de la marchandise manquante, au coût moyen. */
+  missingValue: number;
+  surplusValue: number;
+}
+
+export interface StockCountDetail {
+  count: StockCountSummary;
+  /** Quantités en unités de base ; difference = compté - logiciel. */
+  lines: {
+    productId: string;
+    productName: string;
+    baseUnit: string;
+    expectedQty: number;
+    countedQty: number;
+    difference: number;
+    valueDifference: number;
+    countedAt: string;
+  }[];
+}
+
 export interface Supplier {
   id: string;
   name: string;
@@ -659,6 +690,35 @@ export class Api {
 
   audit(): Observable<AuditEntry[]> {
     return this.http.get<AuditEntry[]>('/api/audit');
+  }
+
+  stockCounts(): Observable<StockCountSummary[]> {
+    return this.http.get<StockCountSummary[]>('/api/stock-counts');
+  }
+
+  stockCount(countId: string): Observable<StockCountDetail> {
+    return this.http.get<StockCountDetail>(`/api/stock-counts/${countId}`);
+  }
+
+  startStockCount(label: string | null): Observable<StockCountDetail> {
+    return this.http.post<StockCountDetail>('/api/stock-counts', { label });
+  }
+
+  /** Enregistre ou remplace le comptage d'un produit, en unités de base. */
+  countProduct(countId: string, productId: string, countedQty: number): Observable<StockCountDetail> {
+    return this.http.put<StockCountDetail>(`/api/stock-counts/${countId}/lines/${productId}`, { countedQty });
+  }
+
+  removeCountLine(countId: string, productId: string): Observable<StockCountDetail> {
+    return this.http.delete<StockCountDetail>(`/api/stock-counts/${countId}/lines/${productId}`);
+  }
+
+  validateStockCount(countId: string): Observable<StockCountDetail> {
+    return this.http.post<StockCountDetail>(`/api/stock-counts/${countId}/validate`, {});
+  }
+
+  abandonStockCount(countId: string): Observable<StockCountDetail> {
+    return this.http.post<StockCountDetail>(`/api/stock-counts/${countId}/abandon`, {});
   }
 
   suppliers(): Observable<Supplier[]> {

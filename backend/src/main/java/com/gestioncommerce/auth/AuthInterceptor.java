@@ -50,6 +50,9 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private static final Pattern SALE_CANCEL = Pattern.compile("/api/sales/[^/]+/cancel");
 
+    /** Valider un inventaire corrige le stock : comme un ajustement, c'est réservé au propriétaire. */
+    private static final Pattern COUNT_VALIDATE = Pattern.compile("/api/stock-counts/[^/]+/validate");
+
     private final AuthService auth;
 
     public AuthInterceptor(AuthService auth) {
@@ -79,7 +82,8 @@ public class AuthInterceptor implements HandlerInterceptor {
         // Tous les rapports montrent des marges ou des coûts.
         boolean report = MANAGER_ONLY.contains(path) || path.startsWith("/api/reports/");
         // Fournisseurs et achats : coûts d'achat et dettes de la boutique.
-        boolean supply = path.startsWith("/api/suppliers") || path.startsWith("/api/purchases");
+        boolean supply = path.startsWith("/api/suppliers") || path.startsWith("/api/purchases")
+                || path.startsWith("/api/stock-counts");
         if (!user.get().isManager() && (report || supply || catalogWrite)) {
             throw new ForbiddenException("Cette opération est réservée au propriétaire et à la secrétaire.");
         }
@@ -96,7 +100,8 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (OWNER_ONLY.contains(path) || path.equals("/api/users") || path.startsWith("/api/users/")) {
             return true;
         }
-        return write && (OWNER_ONLY_WRITES.contains(path) || SALE_CANCEL.matcher(path).matches());
+        return write && (OWNER_ONLY_WRITES.contains(path) || SALE_CANCEL.matcher(path).matches()
+                || COUNT_VALIDATE.matcher(path).matches());
     }
 
     private static String sessionToken(HttpServletRequest request) {
