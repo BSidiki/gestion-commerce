@@ -27,6 +27,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Reçu imprimable sur imprimante thermique (58 ou 80 mm) ou A4, en-tête de la boutique, réimpression | |
 | Apparence personnalisable : couleur, logo et nom de la boutique ; thème clair ou sombre et taille du texte par poste | |
 | Tableau de bord : activité par période, produits les plus vendus, stock qui dort, crédits à relancer, export Excel | |
+| Fournisseurs : achats qui entrent en stock, achats à crédit, dettes et paiements | |
 
 ## Prérequis
 
@@ -151,6 +152,11 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/users/{id}/password`, `/api/users/{id}/active` | Redonner un mot de passe, désactiver ou réactiver un compte (propriétaire) |
 | POST | `/api/users/{id}/role` | Changer le rôle d'un compte (propriétaire) |
 | GET | `/api/audit` | Journal des opérations sensibles (propriétaire) |
+| GET, POST | `/api/suppliers` | Lister les fournisseurs avec ce qui leur est dû, en créer un |
+| GET, PUT | `/api/suppliers/{id}` | Fiche et historique d'un fournisseur, modifier ses coordonnées |
+| POST | `/api/suppliers/{id}/payments` | Payer une dette envers le fournisseur |
+| POST | `/api/purchases` | Enregistrer une livraison : entrée en stock, dette pour ce qui n'est pas payé |
+| GET | `/api/purchases/{id}` | Détail d'un achat |
 | GET | `/api/reports/period?from=&to=` | Activité entre deux dates : totaux, journées, meilleurs produits, dépenses par catégorie, ventes par personne |
 | GET | `/api/reports/stock?dormantDays=30` | Valeur du stock, produits sous le seuil, produits en stock sans vente récente |
 | GET | `/api/reports/credits` | Clients qui doivent de l'argent, et depuis quand ils n'ont rien payé |
@@ -212,6 +218,22 @@ du tableur, titres compris, et on les colle ; un fichier CSV convient aussi. Un 
   relancer le même import ne crée pas de doublon, et ne modifie aucun produit existant.
 - Le stock initial entre comme une réception, valorisée au coût d'achat indiqué. Les catégories absentes sont créées.
 - Au plus 2 000 lignes par import. Un classeur `.xlsx` ne se lit pas directement : copier-coller ou enregistrer en CSV.
+
+### Fournisseurs et achats
+
+Pages **Fournisseurs**, ouvertes au propriétaire et à la secrétaire (elles montrent les coûts d'achat).
+
+- **Un achat** est une livraison d'un fournisseur, en une ou plusieurs lignes : article, conditionnement reçu,
+  quantité, prix d'achat. À l'enregistrement, chaque ligne entre en stock et met à jour le coût moyen du produit.
+  L'achat entier est enregistré, ou rien.
+- **Ce qui n'est pas payé à la livraison devient une dette** envers le fournisseur. La fiche du fournisseur
+  montre ce qui reste à payer, permet de payer, et garde l'historique des achats et des paiements.
+- **Un paiement ne dépasse jamais la dette.** S'il est fait en espèces avec l'argent du tiroir, on le coche :
+  il est alors retiré des espèces attendues à la clôture de la caisse. Sinon, la caisse n'est pas touchée.
+- Un achat n'est pas une dépense : son coût entre dans le résultat au moment où la marchandise est vendue
+  (coût des marchandises vendues), pas au moment où elle est payée.
+- Le vendeur garde la réception simple, depuis la fiche d'un produit, sans fournisseur.
+- Limite : un achat enregistré ne s'annule pas. Une erreur de quantité se corrige par un ajustement de stock.
 
 ### Tableau de bord
 
@@ -299,6 +321,7 @@ backend/src/main/java/com/gestioncommerce/
 ├── sales/                ventes, paiements, annulation, rapport du jour
 ├── cash/                 dépenses, ouverture et clôture de caisse
 ├── backup/               sauvegarde, restauration, historique
+├── suppliers/            fournisseurs, achats, paiements
 ├── reports/              rapports par période, stock, crédits
 ├── license/              essai, vérification des licences, lecture seule
 └── shop/                 coordonnées de la boutique, format du reçu
@@ -311,6 +334,7 @@ frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
 ├── features/pos/         écran de caisse et reçu
 ├── features/sales/       ventes du jour, résumé, annulation, reçu
+├── features/suppliers/   fournisseurs, fiche, saisie d'un achat
 ├── features/reports/     tableau de bord
 ├── features/shop/        coordonnées de la boutique, format du reçu
 ├── features/customers/   clients, compte client, remboursements

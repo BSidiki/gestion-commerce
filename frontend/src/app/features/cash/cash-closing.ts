@@ -39,6 +39,13 @@ import { dateTime, fcfa } from '../../core/format';
             <span class="label">Dépenses en espèces</span>
             <span class="value">{{ money(s.cashExpenses) }}</span>
           </div>
+          @if (s.supplierCash > 0) {
+            <div class="stat">
+              <span class="label">Payé aux fournisseurs</span>
+              <span class="value">{{ money(s.supplierCash) }}</span>
+              <span class="muted">espèces sorties du tiroir</span>
+            </div>
+          }
           <div class="stat">
             <span class="label">Espèces attendues</span>
             <span class="value">{{ money(s.expectedCash) }}</span>

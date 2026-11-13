@@ -64,6 +64,24 @@ export const routes: Routes = [
     loadComponent: () => import('./features/license/license').then(m => m.LicensePage),
   },
   {
+    path: 'fournisseurs',
+    title: 'Fournisseurs',
+    canActivate: [signedIn, managerOnly],
+    loadComponent: () => import('./features/suppliers/supplier-list').then(m => m.SupplierList),
+  },
+  {
+    path: 'fournisseurs/:id/achat',
+    title: 'Nouvel achat',
+    canActivate: [signedIn, managerOnly],
+    loadComponent: () => import('./features/suppliers/purchase-form').then(m => m.PurchaseForm),
+  },
+  {
+    path: 'fournisseurs/:id',
+    title: 'Fournisseur',
+    canActivate: [signedIn, managerOnly],
+    loadComponent: () => import('./features/suppliers/supplier-detail').then(m => m.SupplierDetailPage),
+  },
+  {
     path: 'tableau-de-bord',
     title: 'Tableau de bord',
     canActivate: [signedIn, managerOnly],

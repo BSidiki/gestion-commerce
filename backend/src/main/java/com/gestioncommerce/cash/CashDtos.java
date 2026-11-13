@@ -23,7 +23,8 @@ public final class CashDtos {
     /**
      * @param cashIn       espèces encaissées pendant la session (ventes non annulées et remboursements)
      * @param cashExpenses dépenses payées en espèces pendant la session
-     * @param expectedCash openingFloat + cashIn - cashExpenses
+     * @param supplierCash espèces sorties du tiroir pour payer des fournisseurs pendant la session
+     * @param expectedCash openingFloat + cashIn - cashExpenses - supplierCash
      * @param countedCash  renseigné à la clôture
      * @param difference   countedCash - expectedCash : négatif s'il manque de l'argent
      */
@@ -35,6 +36,7 @@ public final class CashDtos {
             String closedAt,
             long cashIn,
             long cashExpenses,
+            long supplierCash,
             long expectedCash,
             Long countedCash,
             Long difference,
