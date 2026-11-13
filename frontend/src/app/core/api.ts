@@ -192,6 +192,67 @@ export interface Sale {
   payments: PaymentLine[];
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string | null;
+  note: string | null;
+  /** Ce que la boutique doit encore à ce fournisseur. */
+  balance: number;
+}
+
+export interface SupplierEntry {
+  type: 'ACHAT' | 'PAIEMENT';
+  amount: number;
+  purchaseId: string | null;
+  purchaseNumber: number | null;
+  method: PaymentMethod | null;
+  fromCashDrawer: boolean;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface SupplierDetail {
+  supplier: Supplier;
+  entries: SupplierEntry[];
+}
+
+export interface SupplierRequest {
+  name: string;
+  phone: string | null;
+  note: string | null;
+}
+
+export interface PurchaseRequest {
+  supplierId: string;
+  /** quantity : nombre de conditionnements reçus ; totalCost : coût total de la ligne. */
+  items: { packagingId: string; quantity: number; totalCost: number }[];
+  paidAmount: number;
+  paidMethod: PaymentMethod | null;
+  fromCashDrawer: boolean;
+  note: string | null;
+}
+
+export interface Purchase {
+  id: string;
+  number: number;
+  supplierId: string;
+  supplierName: string;
+  total: number;
+  paid: number;
+  note: string | null;
+  businessDate: string;
+  createdAt: string;
+  items: {
+    productId: string;
+    productName: string;
+    packagingName: string;
+    factor: number;
+    quantity: number;
+    totalCost: number;
+  }[];
+}
+
 /** Une journée d'une période : seules celles où il s'est passé quelque chose sont renvoyées. */
 export interface ReportDay {
   date: string;
@@ -318,6 +379,8 @@ export interface CashSession {
   closedAt: string | null;
   cashIn: number;
   cashExpenses: number;
+  /** Espèces sorties du tiroir pour payer des fournisseurs. */
+  supplierCash: number;
   expectedCash: number;
   countedCash: number | null;
   /** Compté moins attendu : négatif s'il manque de l'argent. */
@@ -596,6 +659,37 @@ export class Api {
 
   audit(): Observable<AuditEntry[]> {
     return this.http.get<AuditEntry[]>('/api/audit');
+  }
+
+  suppliers(): Observable<Supplier[]> {
+    return this.http.get<Supplier[]>('/api/suppliers');
+  }
+
+  supplier(supplierId: string): Observable<SupplierDetail> {
+    return this.http.get<SupplierDetail>(`/api/suppliers/${supplierId}`);
+  }
+
+  createSupplier(request: SupplierRequest): Observable<Supplier> {
+    return this.http.post<Supplier>('/api/suppliers', request);
+  }
+
+  updateSupplier(supplierId: string, request: SupplierRequest): Observable<Supplier> {
+    return this.http.put<Supplier>(`/api/suppliers/${supplierId}`, request);
+  }
+
+  paySupplier(
+    supplierId: string,
+    payment: { amount: number; method: PaymentMethod; fromCashDrawer: boolean; note: string | null },
+  ): Observable<Supplier> {
+    return this.http.post<Supplier>(`/api/suppliers/${supplierId}/payments`, payment);
+  }
+
+  createPurchase(request: PurchaseRequest): Observable<Purchase> {
+    return this.http.post<Purchase>('/api/purchases', request);
+  }
+
+  purchase(purchaseId: string): Observable<Purchase> {
+    return this.http.get<Purchase>(`/api/purchases/${purchaseId}`);
   }
 
   periodReport(from: string, to: string): Observable<PeriodReport> {

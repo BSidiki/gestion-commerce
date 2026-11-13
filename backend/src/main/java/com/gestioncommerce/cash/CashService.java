@@ -153,6 +153,15 @@ public class CashService {
                 .query(Long.class)
                 .single();
 
+        long supplierCash = jdbc.sql("""
+                SELECT COALESCE(SUM(amount), 0)
+                FROM supplier_payment
+                WHERE cash_session_id = ?
+                """)
+                .param(sessionId)
+                .query(Long.class)
+                .single();
+
         return jdbc.sql("""
                 SELECT id, status, opening_float, opened_at, closed_at, expected_cash, counted_cash, difference, note
                 FROM cash_session
@@ -162,9 +171,12 @@ public class CashService {
                 .query((rs, i) -> {
                     long openingFloat = rs.getLong("opening_float");
                     Long storedExpected = nullableLong(rs, "expected_cash");
-                    long expected = storedExpected != null ? storedExpected : openingFloat + cashIn - cashExpenses;
+                    long expected = storedExpected != null
+                            ? storedExpected
+                            : openingFloat + cashIn - cashExpenses - supplierCash;
                     return new CashSessionView(rs.getString("id"), rs.getString("status"), openingFloat,
-                            rs.getString("opened_at"), rs.getString("closed_at"), cashIn, cashExpenses, expected,
+                            rs.getString("opened_at"), rs.getString("closed_at"), cashIn, cashExpenses,
+                            supplierCash, expected,
                             nullableLong(rs, "counted_cash"), nullableLong(rs, "difference"), rs.getString("note"));
                 })
                 .optional()
