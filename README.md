@@ -28,6 +28,7 @@ Phases 1 et 2 du plan : catalogue, stock, ventes, crédits clients, dépenses et
 | Apparence personnalisable : couleur, logo et nom de la boutique ; thème clair ou sombre et taille du texte par poste | |
 | Tableau de bord : activité par période, produits les plus vendus, stock qui dort, crédits à relancer, export Excel | |
 | Fournisseurs : achats qui entrent en stock, achats à crédit, dettes et paiements | |
+| Inventaire physique : comptage, écarts chiffrés, correction du stock à la validation | |
 
 ## Prérequis
 
@@ -152,6 +153,11 @@ Sans clé publique embarquée (poste de développement), aucune licence n'est de
 | POST | `/api/users/{id}/password`, `/api/users/{id}/active` | Redonner un mot de passe, désactiver ou réactiver un compte (propriétaire) |
 | POST | `/api/users/{id}/role` | Changer le rôle d'un compte (propriétaire) |
 | GET | `/api/audit` | Journal des opérations sensibles (propriétaire) |
+| GET, POST | `/api/stock-counts` | Lister les inventaires, en commencer un (un seul à la fois) |
+| GET | `/api/stock-counts/{id}` | Un inventaire et ses comptages |
+| PUT, DELETE | `/api/stock-counts/{id}/lines/{productId}` | Enregistrer, remplacer ou retirer le comptage d'un produit |
+| POST | `/api/stock-counts/{id}/validate` | Corriger le stock d'après les écarts (propriétaire) |
+| POST | `/api/stock-counts/{id}/abandon` | Arrêter l'inventaire sans rien corriger |
 | GET, POST | `/api/suppliers` | Lister les fournisseurs avec ce qui leur est dû, en créer un |
 | GET, PUT | `/api/suppliers/{id}` | Fiche et historique d'un fournisseur, modifier ses coordonnées |
 | POST | `/api/suppliers/{id}/payments` | Payer une dette envers le fournisseur |
@@ -218,6 +224,20 @@ du tableur, titres compris, et on les colle ; un fichier CSV convient aussi. Un 
   relancer le même import ne crée pas de doublon, et ne modifie aucun produit existant.
 - Le stock initial entre comme une réception, valorisée au coût d'achat indiqué. Les catégories absentes sont créées.
 - Au plus 2 000 lignes par import. Un classeur `.xlsx` ne se lit pas directement : copier-coller ou enregistrer en CSV.
+
+### Inventaire physique
+
+Page **Inventaire**. Le propriétaire et la secrétaire comptent ; seul le propriétaire valide, car la
+validation corrige le stock.
+
+- On commence un inventaire (un seul à la fois), pour toute la boutique ou pour une partie — un rayon, la réserve.
+- On cherche un produit, on saisit ce qu'on compte par conditionnement (3 cartons et 10 bouteilles) ; le logiciel
+  additionne. Un produit se recompte : le dernier comptage remplace le précédent.
+- Le tableau montre, pour chaque produit compté, le stock du logiciel, le compte, l'écart et sa valeur au coût moyen.
+- **Les ventes peuvent continuer pendant le comptage.** Chaque comptage retient le stock du logiciel à cet instant ;
+  à la validation, c'est l'écart qui est appliqué au stock courant. Une vente faite entre-temps reste comptée.
+- La validation crée un ajustement de stock (motif « Inventaire ») par produit en écart. Les produits non comptés
+  ne sont pas touchés. Un inventaire validé ou abandonné ne se modifie plus.
 
 ### Fournisseurs et achats
 
@@ -321,6 +341,7 @@ backend/src/main/java/com/gestioncommerce/
 ├── sales/                ventes, paiements, annulation, rapport du jour
 ├── cash/                 dépenses, ouverture et clôture de caisse
 ├── backup/               sauvegarde, restauration, historique
+├── stockcount/           inventaire physique
 ├── suppliers/            fournisseurs, achats, paiements
 ├── reports/              rapports par période, stock, crédits
 ├── license/              essai, vérification des licences, lecture seule
@@ -334,6 +355,7 @@ frontend/src/app/
 ├── core/                 client de l'API, formats d'affichage (FCFA, quantités, dates)
 ├── features/pos/         écran de caisse et reçu
 ├── features/sales/       ventes du jour, résumé, annulation, reçu
+├── features/stockcount/  inventaire physique
 ├── features/suppliers/   fournisseurs, fiche, saisie d'un achat
 ├── features/reports/     tableau de bord
 ├── features/shop/        coordonnées de la boutique, format du reçu

@@ -55,6 +55,7 @@ import { LicenseState } from './core/license-state';
               <a routerLink="/fournisseurs" routerLinkActive="active">
                 <app-icon name="fournisseurs" /> Fournisseurs
               </a>
+              <a routerLink="/inventaire" routerLinkActive="active"><app-icon name="inventaire" /> Inventaire</a>
             }
             <a routerLink="/depenses" routerLinkActive="active"><app-icon name="depenses" /> Dépenses</a>
             <a routerLink="/cloture" routerLinkActive="active"><app-icon name="cloture" /> Clôture</a>
